@@ -16,7 +16,12 @@ The analysis integrates two official, publicly available Mexican health database
 * **DGIS (General Directorate of Health Information):** Hospital discharges and vital statistics used to identify NTD cases (ICD-9 and ICD-10 codes), including hospital-documented pregnancy terminations.
 * **INEGI (National Institute of Statistics and Geography):** Official statistics on registered live births and fetal deaths (stillbirths).
 
-> **Epidemiological Note:** Nationwide comprehensive registries for early undocumented miscarriages do not exist in Mexico. Therefore, the denominator for prevalence calculations consists of the most robust baseline available: **total live births and fetal deaths** recorded by INEGI. To prevent underestimating the true NTD burden, the numerator includes all diagnosed NTD cases from live births, fetal deaths, and hospital-documented pregnancy terminations (legally coded as therapeutic abortions within the DGIS fetal death registry).
+> **Epidemiological Note:** Nationwide comprehensive registries for early undocumented miscarriages do not exist in Mexico. Therefore, the denominator for prevalence calculations consists of the most robust baseline available: total live births and fetal deaths recorded by INEGI. To prevent underestimating the true NTD burden, the numerator includes all diagnosed NTD cases from live births, fetal deaths, and hospital-documented pregnancy terminations (which are legally coded within the DGIS fetal death registry).
+
+However, the true prevalence might still be underestimated due to reporting biases; because elective abortion was restricted or illegal in most Mexican regions during the study period, many early terminations likely occurred outside the formal healthcare system and remain undocumented.
+
+The specific formula used to calculate prevalence is:
+Prevalence = ((Live births with NTD + Fetal deaths with NTD) / (Total live births + Total fetal deaths)) * 10,000
 
 ## Key Methodologies
 
