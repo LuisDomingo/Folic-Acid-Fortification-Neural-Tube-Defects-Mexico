@@ -1,0 +1,1331 @@
+---
+title: "Mapeo regional de prevalencia"
+author: "Domingo Martínez"
+toc: true # Activar tabla de contenido
+toc-depth: 3 # Profundidad de la tabla de contenido
+toc-expand: true # Mostrar tabla al inicio
+toc-location: left-body # Ubicación de la tabla de contenido
+number-sections: true # Numerar los encabezados en el render
+number-depth: 3 # Profundidad de encabezados que se numerarán
+toc-title: Contenido # Personalizar el título de la tabla de contenidos
+theme: sketchy # Tema
+fontsize: 100% # Tamaño de la letra
+# fontcolor: grey # Definir color
+highlight-style: pygments
+format:
+  html: 
+    self-contained: true  # Incrustar todos los recursos en un solo archivo
+    code-fold: true # Plegar/expandir bloques de código
+    html-math-method: katex # Renderizado matemático
+  pdf:
+    geometry: 
+      - top=30mm
+      - left=30mm
+  docx: default
+---
+
+## Descripción
+
+En este script se busca mapear la prevalencia de DTN para cada una de las regiones en las cuales se dividió el territorio.
+
+Las variables de interés, de la base de datos titulada tb.DTN.curado.2021-2005.csv, son:
+
+-   Condición al nacimiento (**COND_NAC**), Factor: {vivo/muerto}
+-   Estado que notificó (**ESTADOM2**), Factor: {32 estados/NA}
+
+La notificación del lugar de donde se realizó el reporte se realizará de acuerdo con la clasificación propuesta por la Encuesta Nacional de Salud y Nutrición de México 2012.
+
+Los 32 estados del país y la Ciudad de México se dividieron en 4 regiones, de la siguiente manera:
+
+-   A. Región Norte (Baja California, Baja California Sur, Coahuila, Chihuahua, Durango, Nuevo León, Sinaloa, Sonora, Tamaulipas y Zacatecas)
+-   B. Región Centro (Aguascalientes, Colima, Guanajuato, Hidalgo, Jalisco, Estado de México, Michoacán, Nayarit, Querétaro, San Luis Potosí y Tlaxcala)
+-   C. Región Sur (Campeche, Chiapas, Guerrero, Morelos, Oaxaca, Puebla, Quintana Roo, Tabasco, Veracruz y Yucatán);
+-   D. Ciudad de México (Distrito Federal).
+
+Para poder calcular la prevalencia, también necesitaremos la base de datos de INEGI titulada: "Total_nacimientos_por_Año_y_por_Estado_INEGI.csv"
+
+## Lectura de las bases de datos
+
+```{r Lectura de dataset, include=F, echo=FALSE}
+library(tidyverse)
+tb.DTN.mapeo.regiones<-read_csv("tb.DTN.curado.2021-2005.csv")
+tb.total.nacimientos.INEGI<-read_csv("Total_nacimientos_por_Año_y_por_Estado_INEGI.csv")
+# El total incluye nacidos vivos y nacidos muertos, se muestra por año y por estado.
+```
+
+## Seleccionamos variables de interés
+
+```{r Seleccionando variables de inteŕes, include=FALSE, echo=FALSE}
+tb.DTN.mapeo.regiones2<-tb.DTN.mapeo.regiones %>%
+  select(AÑO, COND_NAC, ESTADOM2)
+```
+
+Ahora tengo que homologar los nombres de los estados de acuerdo con el INEGI.
+
+Los nombres de los estados los extraigo de: tb.total.nacimientos.INEGI
+
+```{r Homologando nombres de estados, include=F, echo=FALSE}
+tb.total.nacimientos.INEGI$Total
+library(plyr)
+tb.DTN.mapeo.regiones2$ESTADOM2<-plyr::revalue(tb.DTN.mapeo.regiones2$ESTADOM2,
+              c("AGUASCALIENTES"="Aguascalientes",
+                "BAJA CALIFORNA NORTE"="Baja California",
+                "BAJA CALIFORNIA SUR"="Baja California Sur",
+                "CAMPECHE"="Campeche",
+                "COAHUILA"="Coahuila de Zaragoza",
+                "COLIMA"="Colima", 
+                "CHIAPAS"="Chiapas",
+                "CHIHUAHUA"="Chihuahua",
+                "CIUDAD DE MÉXICO"="Ciudad de México",
+                "DURANGO"="Durango",
+                "GUANAJUATO"="Guanajuato",
+                "GUERRERO"="Guerrero",
+                "HIDALGO"="Hidalgo", 
+                "JALISCO"="Jalisco",
+                "ESTADO DE MÉXICO"="México",                          
+                "MICHOACÁN"="Michoacán de Ocampo",
+                "MORELOS"= "Morelos",
+                "NAYARIT"="Nayarit",
+                "NUEVO LEÓN"="Nuevo León",
+                "OAXACA"="Oaxaca",
+                "PUEBLA"="Puebla",
+                "QUERÉTARO"="Querétaro",
+                "QUINTANA ROO"="Quintana Roo",
+                "SAN LUIS POTOSÍ"="San Luis Potosí",   
+                "SINALOA"="Sinaloa",
+                "SONORA"="Sonora",
+                "TABASCO"="Tabasco",
+                "TAMAULIPAS"="Tamaulipas",
+                "TLAXCALA"="Tlaxcala",
+                "VERACRUZ"="Veracruz de Ignacio de la Llave",
+                "YUCATÁN"="Yucatán",
+                "ZACATECAS"="Zacatecas",
+                "desconocido"=NA
+                ))
+```
+
+## Estimamos tasa de referencia (prevalencia)
+
+Tasa de referencia = (Total de nacidos vivos con DTN + Total de nacidos muertos con DTN) / (Total de nacidos vivos + Total de nacidos muertos)
+
+Nuestros períodos de estudio se dividen en tres partes: - Pre-fortificación: 2004 a 2008 - Fortificación obligatoria: 2008 - Post-fortificación 2008 a 2021
+
+### Tasa de referencia prefortificación norte
+
+```{r Tasa de referencia norte 2004-2008, include=FALSE, echo=FALSE}
+library(tidyverse)
+# Filtro los años de interés
+tb.DTN.mapeo.regiones2.prefortificacion<-tb.DTN.mapeo.regiones2 %>%
+  filter(AÑO < 2008)
+# Selecciono los estados de la región norte
+tb.pre.fortificacion.norte<-tb.DTN.mapeo.regiones2.prefortificacion%>%
+  filter(ESTADOM2 %in% c("Baja California", 
+                         "Baja California Sur", 
+                         "Coahuila de Zaragoza", 
+                         "Chihuahua", 
+                         "Durango", 
+                         "Nuevo León", 
+                         "Sinaloa", 
+                         "Sonora", 
+                         "Tamaulipas",
+                         "Zacatecas"))
+
+pre.fortificacion.norte <- length(tb.pre.fortificacion.norte$AÑO)
+# Ahora estimo total de nacidos (vivos + muertos) en el mismo período para la región norte
+# Filtro años de interés y estados del norte
+nacimientos.prefortificacion.norte<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2005":"2007")%>%
+  filter(Total %in% c("Baja California", 
+                         "Baja California Sur", 
+                         "Coahuila de Zaragoza", 
+                         "Chihuahua", 
+                         "Durango", 
+                         "Nuevo León", 
+                         "Sinaloa", 
+                         "Sonora", 
+                         "Tamaulipas",
+                         "Zacatecas"))
+
+nacimientos.prefortificacion.norte<-sum(apply(nacimientos.prefortificacion.norte[-1], 1, sum))
+# Tasa de referencia prefortificación norte
+tasa.de.referencia.prefortificacion.norte<-pre.fortificacion.norte/nacimientos.prefortificacion.norte
+# Ahora por cada 10 mil casos
+tasa.de.referencia.prefortificacion.norte.por.diez.mil<-tasa.de.referencia.prefortificacion.norte*10000
+tasa.de.referencia.prefortificacion.norte.por.diez.mil
+```
+
+### Intervalo de confianza prefortificación norte
+
+En este caso, la variabilidad proviene de los años del período, entonces, calcularemos la tasa para cada región para cada año, y con esos valores haremos remuestreo para estimar el intervalo de confianza.
+
+```{r Intervalo de confianza prefortificacion norte 2004:2008, echo=FALSE, include=FALSE}
+# Contamos casos DTN por año para región norte
+tb.pre.fortificacion.norte.años<-as.data.frame(table(tb.pre.fortificacion.norte$AÑO))
+names(tb.pre.fortificacion.norte.años)<-c("Año","nacimientos.DTN")
+# Contamos naciientos totales por año para región norte
+nacimientos.prefortificacion.norte.años<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2005":"2007")%>%
+  filter(Total %in% c("Baja California", 
+                         "Baja California Sur", 
+                         "Coahuila de Zaragoza", 
+                         "Chihuahua", 
+                         "Durango", 
+                         "Nuevo León", 
+                         "Sinaloa", 
+                         "Sonora", 
+                         "Tamaulipas",
+                         "Zacatecas"))
+# Sumamos
+nacimientos.prefortificacion.norte.años<-apply(nacimientos.prefortificacion.norte.años[-1], 2, sum)
+# Convertimos a df
+nacimientos.prefortificacion.norte.años<- as.data.frame(nacimientos.prefortificacion.norte.años)
+# Unimos 
+IC.pre.fortificacion.norte<-cbind(tb.pre.fortificacion.norte.años,nacimientos.prefortificacion.norte.años)
+
+# Tasa de referencia prefortificación norte
+IC.pre.fortificacion.norte$prevalencia <- IC.pre.fortificacion.norte$nacimientos.DTN/
+  IC.pre.fortificacion.norte$nacimientos.prefortificacion.norte.años
+
+# Por cada 10 mil 
+IC.pre.fortificacion.norte$prevalencia_por_diez_mil <-IC.pre.fortificacion.norte$prevalencia*10000
+
+# Hacemos  remuestreos
+
+distribucion.pre.fortificacion.norte <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.pre.fortificacion.norte[i]<-mean(sample(IC.pre.fortificacion.norte$prevalencia_por_diez_mil, 3, replace = T))
+}
+hist(distribucion.pre.fortificacion.norte)
+# Obtenemos el IC del 95%
+quantile.dist.pre.norte <- quantile(distribucion.pre.fortificacion.norte, c(0.025, 0.975))
+```
+
+### Tasa de referencia postfortificación norte
+
+```{r Tasa de referencia norte 2008-2021, include=FALSE, echo=FALSE}
+library(tidyverse)
+# Filtro los años de interés
+tb.DTN.mapeo.regiones2.postfortificacion<-tb.DTN.mapeo.regiones2 %>%
+  filter(AÑO > 2008)
+# Selecciono los estados de la región norte
+tb.post.fortificacion.norte<-tb.DTN.mapeo.regiones2.postfortificacion%>%
+  filter(ESTADOM2 %in% c("Baja California", 
+                         "Baja California Sur", 
+                         "Coahuila de Zaragoza", 
+                         "Chihuahua", 
+                         "Durango", 
+                         "Nuevo León", 
+                         "Sinaloa", 
+                         "Sonora", 
+                         "Tamaulipas",
+                         "Zacatecas"))
+
+post.fortificacion.norte <- length(tb.post.fortificacion.norte$AÑO)
+# Ahora estimo total de nacimos (vivos + muertos) en el mismo período para la región norte
+# Filtro años de interés y estados del norte
+nacimientos.postfortificacion.norte<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2009":"2021")%>%
+  filter(Total %in% c("Baja California", 
+                         "Baja California Sur", 
+                         "Coahuila de Zaragoza", 
+                         "Chihuahua", 
+                         "Durango", 
+                         "Nuevo León", 
+                         "Sinaloa", 
+                         "Sonora", 
+                         "Tamaulipas",
+                         "Zacatecas"))
+
+nacimientos.postfortificacion.norte<-sum(apply(nacimientos.postfortificacion.norte[-1], 1, sum))
+# Tasa de referencia prefortificación norte
+tasa.de.referencia.postfortificacion.norte<-post.fortificacion.norte/nacimientos.postfortificacion.norte
+# Ahora por cada 10 mil casos
+tasa.de.referencia.postfortificacion.norte.por.diez.mil<-tasa.de.referencia.postfortificacion.norte*10000
+tasa.de.referencia.postfortificacion.norte.por.diez.mil
+```
+
+### Intervalo de confianza postfortificación norte
+
+En este caso, la variabilidad proviene de los años del período, entonces, calcularemos la tasa para cada región para cada año, y con esos valores haremos remuestreo para estimar el intervalo de confianza.
+
+```{r Intervalo de confianza postfortificacion norte 2008:2021, echo=FALSE, include=FALSE}
+# Contamos casos DTN por año para región norte
+tb.post.fortificacion.norte.años<-as.data.frame(table(tb.post.fortificacion.norte$AÑO))
+names(tb.post.fortificacion.norte.años)<-c("Año","nacimientos.DTN")
+# Contamos nacimientos totales por año para región norte
+nacimientos.postfortificacion.norte.años<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2009":"2021")%>%
+  filter(Total %in% c("Baja California", 
+                         "Baja California Sur", 
+                         "Coahuila de Zaragoza", 
+                         "Chihuahua", 
+                         "Durango", 
+                         "Nuevo León", 
+                         "Sinaloa", 
+                         "Sonora", 
+                         "Tamaulipas",
+                         "Zacatecas"))
+# Sumamos
+nacimientos.postfortificacion.norte.años<-apply(nacimientos.postfortificacion.norte.años[-1], 2, sum)
+# Convertimos a df
+nacimientos.postfortificacion.norte.años<- as.data.frame(nacimientos.postfortificacion.norte.años)
+# Unimos 
+IC.post.fortificacion.norte<-cbind(tb.post.fortificacion.norte.años,nacimientos.postfortificacion.norte.años)
+
+# Tasa de referencia postfortificación norte
+IC.post.fortificacion.norte$prevalencia <- IC.post.fortificacion.norte$nacimientos.DTN/
+  IC.post.fortificacion.norte$nacimientos.postfortificacion.norte.años
+
+# Por cada 10 mil 
+IC.post.fortificacion.norte$prevalencia_por_diez_mil <-IC.post.fortificacion.norte$prevalencia*10000
+
+# Hacemos  remuestreos
+
+distribucion.post.fortificacion.norte <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.post.fortificacion.norte[i]<-mean(sample(IC.post.fortificacion.norte$prevalencia_por_diez_mil, 3, replace = T))
+}
+hist(distribucion.post.fortificacion.norte)
+# Obtenemos el IC del 95%
+quantile.dist.post.norte <- quantile(distribucion.post.fortificacion.norte, c(0.025, 0.975))
+quantile.dist.post.norte
+```
+
+### Tasa de referencia prefortificación centro
+
+```{r Tasa de referencia centro 2004-2008, include=FALSE, echo=FALSE}
+library(tidyverse)
+# Filtro los años de interés
+tb.DTN.mapeo.regiones2.prefortificacion<-tb.DTN.mapeo.regiones2 %>%
+  filter(AÑO < 2008)
+# Selecciono los estados de la región norte
+tb.pre.fortificacion.centro<-tb.DTN.mapeo.regiones2.prefortificacion%>%
+  filter(ESTADOM2 %in% c("Aguascalientes",
+                         "Colima",
+                         "Guanajuato",
+                         "Hidalgo",
+                         "Jalisco",
+                         "México", 
+                         "Michoacán de Ocampo",
+                         "Nayarit","Querétaro",
+                         "San Luis Potosí",
+                         "Tlaxcala"))
+
+pre.fortificacion.centro <- length(tb.pre.fortificacion.centro$AÑO)
+# Ahora estimo total de nacimientos (vivos + muertos) en el mismo período para la región centro
+# Filtro años de interés y estados del centro
+nacimientos.prefortificacion.centro<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2005":"2007")%>%
+  filter(Total %in% c("Aguascalientes",
+                         "Colima",
+                         "Guanajuato",
+                         "Hidalgo",
+                         "Jalisco",
+                         "México", 
+                         "Michoacán de Ocampo",
+                         "Nayarit","Querétaro",
+                         "San Luis Potosí",
+                         "Tlaxcala"))
+
+nacimientos.prefortificacion.centro<-sum(apply(nacimientos.prefortificacion.centro[-1], 1, sum))
+# Tasa de referencia prefortificación norte
+tasa.de.referencia.prefortificacion.centro<-pre.fortificacion.centro/nacimientos.prefortificacion.centro
+# Ahora por cada 10 mil casos
+tasa.de.referencia.prefortificacion.centro.por.diez.mil<-tasa.de.referencia.prefortificacion.centro*10000
+tasa.de.referencia.prefortificacion.centro.por.diez.mil
+```
+
+### Intervalo de confianza prefortificación centro
+
+```{r Intervalo de confianza prefortificacion centro 2004:2008, echo=FALSE, include=FALSE}
+# Contamos casos DTN por año para región centro
+tb.pre.fortificacion.centro.años<-as.data.frame(table(tb.pre.fortificacion.centro$AÑO))
+names(tb.pre.fortificacion.centro.años)<-c("Año","nacimientos.DTN")
+# Contamos nacimientos totales por año para región centro
+nacimientos.prefortificacion.centro.años<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2005":"2007")%>%
+  filter(Total %in% c("Aguascalientes",
+                         "Colima",
+                         "Guanajuato",
+                         "Hidalgo",
+                         "Jalisco",
+                         "México", 
+                         "Michoacán de Ocampo",
+                         "Nayarit","Querétaro",
+                         "San Luis Potosí",
+                         "Tlaxcala"))
+# Sumamos
+nacimientos.prefortificacion.centro.años<-apply(nacimientos.prefortificacion.centro.años[-1], 2, sum)
+# Convertimos a df
+nacimientos.prefortificacion.centro.años<- as.data.frame(nacimientos.prefortificacion.centro.años)
+# Unimos 
+IC.pre.fortificacion.centro<-cbind(tb.pre.fortificacion.centro.años,nacimientos.prefortificacion.centro.años)
+
+# Tasa de referencia prefortificación centro
+IC.pre.fortificacion.centro$prevalencia <- IC.pre.fortificacion.centro$nacimientos.DTN/
+  IC.pre.fortificacion.centro$nacimientos.prefortificacion.centro.años
+
+# Por cada 10 mil 
+IC.pre.fortificacion.centro$prevalencia_por_diez_mil <-IC.pre.fortificacion.centro$prevalencia*10000
+
+# Hacemos  remuestreos
+
+distribucion.pre.fortificacion.centro <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.pre.fortificacion.centro[i]<-mean(sample(IC.pre.fortificacion.centro$prevalencia_por_diez_mil, 3, replace = T))
+}
+hist(distribucion.pre.fortificacion.centro)
+# Obtenemos el IC del 95%
+quantile.dist.pre.centro <- quantile(distribucion.pre.fortificacion.centro, c(0.025, 0.975))
+quantile.dist.pre.centro
+```
+
+### Tasa de referencia postfortificación centro
+
+```{r Tasa de referencia centro 2008-2021, include=FALSE, echo=FALSE}
+library(tidyverse)
+# Filtro los años de interés
+tb.DTN.mapeo.regiones2.postfortificacion<-tb.DTN.mapeo.regiones2 %>%
+  filter(AÑO > 2008)
+# Selecciono los estados de la región norte
+tb.post.fortificacion.centro<-tb.DTN.mapeo.regiones2.postfortificacion%>%
+  filter(ESTADOM2 %in% c("Aguascalientes",
+                         "Colima",
+                         "Guanajuato",
+                         "Hidalgo",
+                         "Jalisco",
+                         "México", 
+                         "Michoacán de Ocampo",
+                         "Nayarit","Querétaro",
+                         "San Luis Potosí",
+                         "Tlaxcala"))
+
+post.fortificacion.centro <- length(tb.post.fortificacion.centro$AÑO)
+# Ahora estimo total de nacimientos (vivos + muertos) en el mismo período para la región centro
+# Filtro años de interés y estados del centro
+nacimientos.postfortificacion.centro<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2009":"2021")%>%
+  filter(Total %in% c("Aguascalientes",
+                         "Colima",
+                         "Guanajuato",
+                         "Hidalgo",
+                         "Jalisco",
+                         "México", 
+                         "Michoacán de Ocampo",
+                         "Nayarit","Querétaro",
+                         "San Luis Potosí",
+                         "Tlaxcala"))
+
+nacimientos.postfortificacion.centro<-sum(apply(nacimientos.postfortificacion.centro[-1], 1, sum))
+# Tasa de referencia prefortificación norte
+tasa.de.referencia.postfortificacion.centro<-post.fortificacion.centro/nacimientos.postfortificacion.centro
+# Ahora por cada 10 mil casos
+tasa.de.referencia.postfortificacion.centro.por.diez.mil<-tasa.de.referencia.postfortificacion.centro*10000
+tasa.de.referencia.postfortificacion.centro.por.diez.mil
+```
+
+### Intervalo de confianza postfortificación centro
+
+```{r Intervalo de confianza postfortificacion centro 2008:2021, echo=FALSE, include=FALSE}
+# Contamos casos DTN por año para región centro
+tb.post.fortificacion.centro.años<-as.data.frame(table(tb.post.fortificacion.centro$AÑO))
+names(tb.post.fortificacion.centro.años)<-c("Año","nacimientos.DTN")
+# Contamos nacimientos totales por año para región centro
+nacimientos.postfortificacion.centro.años<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2009":"2021")%>%
+  filter(Total %in% c("Aguascalientes",
+                         "Colima",
+                         "Guanajuato",
+                         "Hidalgo",
+                         "Jalisco",
+                         "México", 
+                         "Michoacán de Ocampo",
+                         "Nayarit","Querétaro",
+                         "San Luis Potosí",
+                         "Tlaxcala"))
+# Sumamos
+nacimientos.postfortificacion.centro.años<-apply(nacimientos.postfortificacion.centro.años[-1], 2, sum)
+# Convertimos a df
+nacimientos.postfortificacion.centro.años<- as.data.frame(nacimientos.postfortificacion.centro.años)
+# Unimos 
+IC.post.fortificacion.centro<-cbind(tb.post.fortificacion.centro.años,
+                                    nacimientos.postfortificacion.centro.años)
+
+# Tasa de referencia postfortificación centro
+IC.post.fortificacion.centro$prevalencia <- IC.post.fortificacion.centro$nacimientos.DTN/
+  IC.post.fortificacion.centro$nacimientos.postfortificacion.centro.años
+
+# Por cada 10 mil 
+IC.post.fortificacion.centro$prevalencia_por_diez_mil <-IC.post.fortificacion.centro$prevalencia*10000
+
+# Hacemos  remuestreos
+distribucion.post.fortificacion.centro <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.post.fortificacion.centro[i]<-mean(sample(IC.post.fortificacion.centro$prevalencia_por_diez_mil, 3, replace = T))
+}
+hist(distribucion.post.fortificacion.centro)
+# Obtenemos el IC del 95%
+quantile.dist.post.centro <- quantile(distribucion.post.fortificacion.centro, c(0.025, 0.975))
+quantile.dist.post.centro
+```
+
+### Tasa de referencia prefortificación sur
+
+```{r Tasa de referencia sur 2004-2008, include=FALSE, echo=FALSE}
+library(tidyverse)
+# Filtro los años de interés
+tb.DTN.mapeo.regiones2.prefortificacion<-tb.DTN.mapeo.regiones2 %>%
+  filter(AÑO < 2008)
+# Selecciono los estados de la región norte
+tb.pre.fortificacion.sur<-tb.DTN.mapeo.regiones2.prefortificacion%>%
+  filter(ESTADOM2 %in% c("Campeche",
+                         "Chiapas",
+                         "Guerrero", 
+                         "Morelos",
+                         "Oaxaca",
+                         "Puebla",
+                         "Quintana Roo",
+                         "Tabasco", 
+                         "Veracruz de Ignacio de la Llave",
+                         "Yucatán"))
+
+pre.fortificacion.sur <- length(tb.pre.fortificacion.sur$AÑO)
+# Ahora estimo total de nacimientos (vivos + muertos) en el mismo período para la región sur
+# Filtro años de interés y estados del centro
+nacimientos.prefortificacion.sur<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2005":"2007")%>%
+  filter(Total %in% c("Campeche",
+                         "Chiapas",
+                         "Guerrero", 
+                         "Morelos",
+                         "Oaxaca",
+                         "Puebla",
+                         "Quintana Roo",
+                         "Tabasco", 
+                         "Veracruz de Ignacio de la Llave",
+                         "Yucatán"))
+
+nacimientos.prefortificacion.sur<-sum(apply(nacimientos.prefortificacion.sur[-1], 1, sum))
+# Tasa de referencia prefortificación sur
+tasa.de.referencia.prefortificacion.sur<-pre.fortificacion.sur/nacimientos.prefortificacion.sur
+# Ahora por cada 10 mil casos
+tasa.de.referencia.prefortificacion.sur.por.diez.mil<-tasa.de.referencia.prefortificacion.sur*10000
+tasa.de.referencia.prefortificacion.sur.por.diez.mil
+```
+
+### Intervalo de confianza prefortificación sur
+
+```{r Intervalo de confianza prefortificacion sur 2004:2008, echo=FALSE, include=FALSE}
+# Contamos casos DTN por año para región sur
+tb.pre.fortificacion.sur.años<-as.data.frame(table(tb.pre.fortificacion.sur$AÑO))
+names(tb.pre.fortificacion.sur.años)<-c("Año","nacimientos.DTN")
+# Contamos nacimientos totales por año para región sur
+nacimientos.prefortificacion.sur.años<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2005":"2007")%>%
+  filter(Total %in% c("Campeche",
+                         "Chiapas",
+                         "Guerrero", 
+                         "Morelos",
+                         "Oaxaca",
+                         "Puebla",
+                         "Quintana Roo",
+                         "Tabasco", 
+                         "Veracruz de Ignacio de la Llave",
+                         "Yucatán"))
+# Sumamos
+nacimientos.prefortificacion.sur.años<-apply(nacimientos.prefortificacion.sur.años[-1], 2, sum)
+# Convertimos a df
+nacimientos.prefortificacion.sur.años<- as.data.frame(nacimientos.prefortificacion.sur.años)
+# Unimos 
+IC.pre.fortificacion.sur<-cbind(tb.pre.fortificacion.sur.años,nacimientos.prefortificacion.sur.años)
+
+# Tasa de referencia prefortificación sur
+IC.pre.fortificacion.sur$prevalencia <- IC.pre.fortificacion.sur$nacimientos.DTN/
+  IC.pre.fortificacion.sur$nacimientos.prefortificacion.sur.años
+
+# Por cada 10 mil 
+IC.pre.fortificacion.sur$prevalencia_por_diez_mil <-IC.pre.fortificacion.sur$prevalencia*10000
+
+# Hacemos  remuestreos
+
+distribucion.pre.fortificacion.sur <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.pre.fortificacion.sur[i]<-mean(sample(IC.pre.fortificacion.sur$prevalencia_por_diez_mil, 3, replace = T))
+}
+hist(distribucion.pre.fortificacion.sur)
+# Obtenemos el IC del 95%
+quantile.dist.pre.sur <- quantile(distribucion.pre.fortificacion.sur, c(0.025, 0.975))
+quantile.dist.pre.sur
+```
+
+### Tasa de referencia postfortificación sur
+
+```{r Tasa de referencia sur 2008-2021, include=FALSE, echo=FALSE}
+library(tidyverse)
+# Filtro los años de interés
+tb.DTN.mapeo.regiones2.postfortificacion<-tb.DTN.mapeo.regiones2 %>%
+  filter(AÑO > 2008)
+# Selecciono los estados de la región sur
+tb.post.fortificacion.sur<-tb.DTN.mapeo.regiones2.postfortificacion%>%
+  filter(ESTADOM2 %in% c("Campeche",
+                         "Chiapas",
+                         "Guerrero", 
+                         "Morelos",
+                         "Oaxaca",
+                         "Puebla",
+                         "Quintana Roo",
+                         "Tabasco", 
+                         "Veracruz de Ignacio de la Llave",
+                         "Yucatán"))
+
+post.fortificacion.sur <- length(tb.post.fortificacion.sur$AÑO)
+# Ahora estimo total de nacimientos (vivos + muertos) en el mismo período para la región sur
+# Filtro años de interés y estados del sur
+nacimientos.postfortificacion.sur<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2009":"2021")%>%
+  filter(Total %in% c("Campeche",
+                         "Chiapas",
+                         "Guerrero", 
+                         "Morelos",
+                         "Oaxaca",
+                         "Puebla",
+                         "Quintana Roo",
+                         "Tabasco", 
+                         "Veracruz de Ignacio de la Llave",
+                         "Yucatán"))
+
+nacimientos.postfortificacion.sur<-sum(apply(nacimientos.postfortificacion.sur[-1], 1, sum))
+# Tasa de referencia prefortificación sur
+tasa.de.referencia.postfortificacion.sur<-post.fortificacion.sur/nacimientos.postfortificacion.sur
+# Ahora por cada 10 mil casos
+tasa.de.referencia.postfortificacion.sur.por.diez.mil<-tasa.de.referencia.postfortificacion.sur*10000
+tasa.de.referencia.postfortificacion.sur.por.diez.mil
+```
+
+### Intervalo de confianza postfortificación sur
+
+```{r Intervalo de confianza postfortificacion sur 2008:2021, echo=FALSE, include=FALSE}
+# Contamos casos DTN por año para región sur
+tb.post.fortificacion.sur.años<-as.data.frame(table(tb.post.fortificacion.sur$AÑO))
+names(tb.post.fortificacion.sur.años)<-c("Año","nacimientos.DTN")
+# Contamos nacimientos totales por año para región sur
+nacimientos.postfortificacion.sur.años<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2009":"2021")%>%
+  filter(Total %in% c("Campeche",
+                         "Chiapas",
+                         "Guerrero", 
+                         "Morelos",
+                         "Oaxaca",
+                         "Puebla",
+                         "Quintana Roo",
+                         "Tabasco", 
+                         "Veracruz de Ignacio de la Llave",
+                         "Yucatán"))
+# Sumamos
+nacimientos.postfortificacion.sur.años<-apply(nacimientos.postfortificacion.sur.años[-1], 2, sum)
+# Convertimos a df
+nacimientos.postfortificacion.sur.años<- as.data.frame(nacimientos.postfortificacion.sur.años)
+# Unimos 
+IC.post.fortificacion.sur<-cbind(tb.post.fortificacion.sur.años,
+                                    nacimientos.postfortificacion.sur.años)
+
+# Tasa de referencia postfortificación sur
+IC.post.fortificacion.sur$prevalencia <- IC.post.fortificacion.sur$nacimientos.DTN/
+  IC.post.fortificacion.sur$nacimientos.postfortificacion.sur.años
+
+# Por cada 10 mil 
+IC.post.fortificacion.sur$prevalencia_por_diez_mil <-IC.post.fortificacion.sur$prevalencia*10000
+
+# Hacemos  remuestreos
+distribucion.post.fortificacion.sur <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.post.fortificacion.sur[i]<-mean(sample(IC.post.fortificacion.sur$prevalencia_por_diez_mil, 3, replace = T))
+}
+hist(distribucion.post.fortificacion.sur)
+# Obtenemos el IC del 95%
+quantile.dist.post.sur <- quantile(distribucion.post.fortificacion.sur, c(0.025, 0.975))
+quantile.dist.post.sur
+```
+
+### Tasa de referencia prefortificación CDMX
+
+```{r Tasa de referencia CDMX 2004-2008, include=FALSE, echo=FALSE}
+library(tidyverse)
+# Filtro los años de interés
+tb.DTN.mapeo.regiones2.prefortificacion<-tb.DTN.mapeo.regiones2 %>%
+  filter(AÑO < 2008)
+# Selecciono los estados de la región CDMX
+tb.pre.fortificacion.CDMX<-tb.DTN.mapeo.regiones2.prefortificacion%>%
+  filter(ESTADOM2 %in% c("Ciudad de México"))
+
+pre.fortificacion.CDMX <- length(tb.pre.fortificacion.CDMX$AÑO)
+# Ahora estimo total de nacimientos (vivos + muertos) en el mismo período para la región CDMX
+# Filtro años de interés y estados del centro
+nacimientos.prefortificacion.CDMX<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2005":"2007")%>%
+  filter(Total %in% c("Ciudad de México"))
+
+nacimientos.prefortificacion.CDMX<-sum(apply(nacimientos.prefortificacion.CDMX[-1], 1, sum))
+# Tasa de referencia prefortificación CDMX
+tasa.de.referencia.prefortificacion.CDMX<-pre.fortificacion.CDMX/nacimientos.prefortificacion.CDMX
+# Ahora por cada 10 mil casos
+tasa.de.referencia.prefortificacion.CDMX.por.diez.mil<-tasa.de.referencia.prefortificacion.CDMX*10000
+tasa.de.referencia.prefortificacion.CDMX.por.diez.mil
+```
+
+### Intervalo de confianza prefortificación CDMX
+
+```{r Intervalo de confianza prefortificacion CDMX 2004:2008, echo=FALSE, include=FALSE}
+# Contamos casos DTN por año para región CDMX
+tb.pre.fortificacion.CDMX.años<-as.data.frame(table(tb.pre.fortificacion.CDMX$AÑO))
+names(tb.pre.fortificacion.CDMX.años)<-c("Año","nacimientos.DTN")
+# Contamos nacimientos totales por año para región CDMX
+nacimientos.prefortificacion.CDMX.años<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2005":"2007")%>%
+  filter(Total %in% c("Ciudad de México"))
+# Sumamos
+nacimientos.prefortificacion.CDMX.años<-apply(nacimientos.prefortificacion.CDMX.años[-1], 2, sum)
+# Convertimos a df
+nacimientos.prefortificacion.CDMX.años<- as.data.frame(nacimientos.prefortificacion.CDMX.años)
+# Unimos 
+IC.pre.fortificacion.CDMX<-cbind(tb.pre.fortificacion.CDMX.años,nacimientos.prefortificacion.CDMX.años)
+
+# Tasa de referencia prefortificación sur
+IC.pre.fortificacion.CDMX$prevalencia <- IC.pre.fortificacion.CDMX$nacimientos.DTN/
+  IC.pre.fortificacion.CDMX$nacimientos.prefortificacion.CDMX.años
+
+# Por cada 10 mil 
+IC.pre.fortificacion.CDMX$prevalencia_por_diez_mil <-IC.pre.fortificacion.CDMX$prevalencia*10000
+
+# Hacemos  remuestreos
+distribucion.pre.fortificacion.CDMX <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.pre.fortificacion.CDMX[i]<-mean(sample(IC.pre.fortificacion.CDMX$prevalencia_por_diez_mil, 3, replace = T))
+}
+hist(distribucion.pre.fortificacion.CDMX)
+# Obtenemos el IC del 95%
+quantile.dist.pre.CDMX <- quantile(distribucion.pre.fortificacion.CDMX, c(0.025, 0.975))
+quantile.dist.pre.CDMX
+```
+
+### Tasa de referencia postfortificación CDMX
+
+```{r Tasa de referencia CDMX 2008-2021, include=FALSE, echo=FALSE}
+library(tidyverse)
+# Filtro los años de interés
+tb.DTN.mapeo.regiones2.postfortificacion<-tb.DTN.mapeo.regiones2 %>%
+  filter(AÑO > 2008)
+# Selecciono los estados de la región CDMX
+tb.post.fortificacion.CDMX<-tb.DTN.mapeo.regiones2.postfortificacion%>%
+  filter(ESTADOM2 %in% c("Ciudad de México"))
+
+post.fortificacion.CDMX <- length(tb.post.fortificacion.CDMX$AÑO)
+# Ahora estimo total de nacimientos (vivos + muertos) en el mismo período para la región CDMX
+# Filtro años de interés y estados del centro
+nacimientos.postfortificacion.CDMX<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2009":"2021")%>%
+  filter(Total %in% c("Ciudad de México"))
+
+nacimientos.postfortificacion.CDMX<-sum(apply(nacimientos.postfortificacion.CDMX[-1], 1, sum))
+# Tasa de referencia prefortificación CDMX
+tasa.de.referencia.postfortificacion.CDMX<-post.fortificacion.CDMX/nacimientos.postfortificacion.CDMX
+# Ahora por cada 10 mil casos
+tasa.de.referencia.postfortificacion.CDMX.por.diez.mil<-tasa.de.referencia.postfortificacion.CDMX*10000
+tasa.de.referencia.postfortificacion.CDMX.por.diez.mil
+```
+
+### Intervalo de confianza postfortificación CDMX
+
+```{r Intervalo de confianza postfortificacion CDMX 2008:2021, echo=FALSE, include=FALSE}
+# Contamos casos DTN por año para región CDMX
+tb.post.fortificacion.CDMX.años<-as.data.frame(table(tb.post.fortificacion.CDMX$AÑO))
+names(tb.post.fortificacion.CDMX.años)<-c("Año","nacimientos.DTN")
+# Contamos nacimientos totales por año para región CDMX
+nacimientos.postfortificacion.CDMX.años<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2009":"2021")%>%
+  filter(Total %in% c("Ciudad de México"))
+# Sumamos
+nacimientos.postfortificacion.CDMX.años<-apply(nacimientos.postfortificacion.CDMX.años[-1], 2, sum)
+# Convertimos a df
+nacimientos.postfortificacion.CDMX.años<- as.data.frame(nacimientos.postfortificacion.CDMX.años)
+# Unimos 
+IC.post.fortificacion.CDMX<-cbind(tb.post.fortificacion.CDMX.años,
+                                    nacimientos.postfortificacion.CDMX.años)
+
+# Tasa de referencia postfortificación CDMX
+IC.post.fortificacion.CDMX$prevalencia <- IC.post.fortificacion.CDMX$nacimientos.DTN/
+  IC.post.fortificacion.CDMX$nacimientos.postfortificacion.CDMX.años
+
+# Por cada 10 mil 
+IC.post.fortificacion.CDMX$prevalencia_por_diez_mil <-IC.post.fortificacion.CDMX$prevalencia*10000
+
+# Hacemos  remuestreos
+distribucion.post.fortificacion.CDMX <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.post.fortificacion.CDMX[i]<-mean(sample(IC.post.fortificacion.CDMX$prevalencia_por_diez_mil, 3, replace = T))
+}
+hist(distribucion.post.fortificacion.CDMX)
+# Obtenemos el IC del 95%
+quantile.dist.post.CDMX <- quantile(distribucion.post.fortificacion.CDMX, c(0.025, 0.975))
+quantile.dist.post.CDMX
+```
+
+## Integramos información y la asignamos a cada estado según su región
+
+```{r Integración de información, include=FALSE, echo=FALSE}
+# Norte
+tasa.de.referencia.prefortificacion.norte.por.diez.mil
+tasa.de.referencia.postfortificacion.norte.por.diez.mil
+razon.prevalencia.norte <- tasa.de.referencia.postfortificacion.norte.por.diez.mil / tasa.de.referencia.prefortificacion.norte.por.diez.mil
+razon.prevalencia.norte
+disminucion.prevalencia.norte <- tasa.de.referencia.prefortificacion.norte.por.diez.mil - tasa.de.referencia.postfortificacion.norte.por.diez.mil
+disminucion.prevalencia.norte
+# Centro
+tasa.de.referencia.prefortificacion.centro.por.diez.mil
+tasa.de.referencia.postfortificacion.centro.por.diez.mil
+razon.prevalencia.centro <- tasa.de.referencia.postfortificacion.centro.por.diez.mil / tasa.de.referencia.prefortificacion.centro.por.diez.mil
+razon.prevalencia.centro
+disminucion.prevalencia.centro <- tasa.de.referencia.prefortificacion.centro.por.diez.mil - tasa.de.referencia.postfortificacion.centro.por.diez.mil
+disminucion.prevalencia.centro
+# Sur
+tasa.de.referencia.prefortificacion.sur.por.diez.mil
+tasa.de.referencia.postfortificacion.sur.por.diez.mil
+razon.prevalencia.sur <- tasa.de.referencia.postfortificacion.sur.por.diez.mil / tasa.de.referencia.prefortificacion.sur.por.diez.mil
+razon.prevalencia.sur
+disminucion.prevalencia.sur <- tasa.de.referencia.prefortificacion.sur.por.diez.mil - tasa.de.referencia.postfortificacion.sur.por.diez.mil
+disminucion.prevalencia.sur
+# CDMX
+tasa.de.referencia.prefortificacion.CDMX.por.diez.mil
+tasa.de.referencia.postfortificacion.CDMX.por.diez.mil
+razon.prevalencia.CDMX <- tasa.de.referencia.postfortificacion.CDMX.por.diez.mil / tasa.de.referencia.prefortificacion.CDMX.por.diez.mil
+razon.prevalencia.CDMX
+disminucion.prevalencia.CDMX <- tasa.de.referencia.prefortificacion.CDMX.por.diez.mil - tasa.de.referencia.postfortificacion.CDMX.por.diez.mil
+disminucion.prevalencia.CDMX
+```
+
+### Intervalo de confianza razón de prevalencia Norte
+
+```{r IC razon de prevalencia Norte, echo=FALSE, include=FALSE}
+# Remuestreo razón de prevalencia región norte
+distribucion.razon.prevalencia.norte <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.razon.prevalencia.norte[i]<- mean(sample(IC.post.fortificacion.norte$prevalencia_por_diez_mil, 3, replace = T)) / mean(sample(IC.pre.fortificacion.norte$prevalencia_por_diez_mil, 3, replace = T))
+}
+hist(distribucion.razon.prevalencia.norte)
+# Obtenemos el IC del 95%
+quantile.razon.prevalencia.norte <- quantile(distribucion.razon.prevalencia.norte, c(0.025, 0.975))
+quantile.razon.prevalencia.norte
+```
+
+### Intervalo de confianza disminución de prevalencia Norte
+
+```{r IC disminución de prevalencia Norte, echo=FALSE, include=FALSE}
+# Remuestreo disminución de prevalencia región norte
+distribucion.disminucion.prevalencia.norte <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.disminucion.prevalencia.norte[i]<-
+    mean(sample(IC.pre.fortificacion.norte$prevalencia_por_diez_mil, 3, replace = T)) - mean(sample(IC.post.fortificacion.norte$prevalencia_por_diez_mil, 3, replace = T)) 
+}
+hist(distribucion.disminucion.prevalencia.norte)
+# Obtenemos el IC del 95%
+quantile.disminucion.prevalencia.norte <- quantile(distribucion.disminucion.prevalencia.norte, c(0.025, 0.975))
+quantile.disminucion.prevalencia.norte
+```
+
+------------------------------------------------------------------------
+
+### Intervalo de confianza razón de prevalencia Centro
+
+```{r IC razon de prevalencia Centro, echo=FALSE, include=FALSE}
+# Remuestreo razón de prevalencia región centro
+distribucion.razon.prevalencia.centro <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.razon.prevalencia.centro[i]<- mean(sample(IC.post.fortificacion.centro$prevalencia_por_diez_mil, 3, replace = T)) / mean(sample(IC.pre.fortificacion.centro$prevalencia_por_diez_mil, 3, replace = T))
+}
+hist(distribucion.razon.prevalencia.centro)
+# Obtenemos el IC del 95%
+quantile.razon.prevalencia.centro <- quantile(distribucion.razon.prevalencia.centro, c(0.025, 0.975))
+quantile.razon.prevalencia.centro
+```
+
+### Intervalo de confianza disminución de prevalencia Centro
+
+```{r IC disminución de prevalencia Centro, echo=FALSE, include=FALSE}
+# Remuestreo disminución de prevalencia región centro
+distribucion.disminucion.prevalencia.centro <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.disminucion.prevalencia.centro[i]<-
+    mean(sample(IC.pre.fortificacion.centro$prevalencia_por_diez_mil, 3, replace = T)) - mean(sample(IC.post.fortificacion.centro$prevalencia_por_diez_mil, 3, replace = T)) 
+}
+hist(distribucion.disminucion.prevalencia.centro)
+# Obtenemos el IC del 95%
+quantile.disminucion.prevalencia.centro <- quantile(distribucion.disminucion.prevalencia.centro, c(0.025, 0.975))
+quantile.disminucion.prevalencia.centro
+```
+
+------------------------------------------------------------------------
+
+### Intervalo de confianza razón de prevalencia Sur
+
+```{r IC razon de prevalencia Sur, echo=FALSE, include=FALSE}
+# Remuestreo razón de prevalencia región sur
+distribucion.razon.prevalencia.sur <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.razon.prevalencia.sur[i]<- mean(sample(IC.post.fortificacion.sur$prevalencia_por_diez_mil, 3, replace = T)) / mean(sample(IC.pre.fortificacion.sur$prevalencia_por_diez_mil, 3, replace = T))
+}
+hist(distribucion.razon.prevalencia.sur)
+# Obtenemos el IC del 95%
+quantile.razon.prevalencia.sur <- quantile(distribucion.razon.prevalencia.sur, c(0.025, 0.975))
+quantile.razon.prevalencia.sur
+```
+
+### Intervalo de confianza disminución de prevalencia Sur
+
+```{r IC disminución de prevalencia Sur, echo=FALSE, include=FALSE}
+# Remuestreo disminución de prevalencia región sur
+distribucion.disminucion.prevalencia.sur <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.disminucion.prevalencia.sur[i]<-
+    mean(sample(IC.pre.fortificacion.sur$prevalencia_por_diez_mil, 3, replace = T)) - mean(sample(IC.post.fortificacion.sur$prevalencia_por_diez_mil, 3, replace = T)) 
+}
+hist(distribucion.disminucion.prevalencia.sur)
+# Obtenemos el IC del 95%
+quantile.disminucion.prevalencia.sur <- quantile(distribucion.disminucion.prevalencia.sur, c(0.025, 0.975))
+quantile.disminucion.prevalencia.sur
+```
+
+------------------------------------------------------------------------
+
+### Intervalo de confianza razón de prevalencia CDMX
+
+```{r IC razon de prevalencia CDMX, echo=FALSE, include=FALSE}
+# Remuestreo razón de prevalencia región CDMX
+distribucion.razon.prevalencia.CDMX <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.razon.prevalencia.CDMX[i]<- mean(sample(IC.post.fortificacion.CDMX$prevalencia_por_diez_mil, 3, replace = T)) / mean(sample(IC.pre.fortificacion.CDMX$prevalencia_por_diez_mil, 3, replace = T))
+}
+hist(distribucion.razon.prevalencia.CDMX)
+# Obtenemos el IC del 95%
+quantile.razon.prevalencia.CDMX <- quantile(distribucion.razon.prevalencia.CDMX, c(0.025, 0.975))
+quantile.razon.prevalencia.CDMX
+```
+
+### Intervalo de confianza disminución de prevalencia CDMX
+
+```{r IC disminución de prevalencia CDMX, echo=FALSE, include=FALSE}
+# Remuestreo disminución de prevalencia región CDMX
+distribucion.disminucion.prevalencia.CDMX <- numeric(5000)
+
+for (i in 1:5000) {
+  distribucion.disminucion.prevalencia.CDMX[i]<-
+    mean(sample(IC.pre.fortificacion.CDMX$prevalencia_por_diez_mil, 3, replace = T)) - mean(sample(IC.post.fortificacion.CDMX$prevalencia_por_diez_mil, 3, replace = T)) 
+}
+hist(distribucion.disminucion.prevalencia.CDMX)
+# Obtenemos el IC del 95%
+quantile.disminucion.prevalencia.CDMX <- quantile(distribucion.disminucion.prevalencia.CDMX, c(0.025, 0.975))
+quantile.disminucion.prevalencia.CDMX
+```
+
+------------------------------------------------------------------------
+
+## Métricas de interés
+
+```{r Métricas de interés, echo=T, include=F, results='hold'}
+razon.prevalencia.norte
+razon.prevalencia.centro
+razon.prevalencia.sur
+razon.prevalencia.CDMX
+disminucion.prevalencia.norte
+disminucion.prevalencia.centro
+disminucion.prevalencia.sur
+disminucion.prevalencia.CDMX
+
+tabla.prevalencia.regiones<-data.frame(
+          `Región`=c("Norte", "Centro", "Sur", "CDMX"),
+           `Prevalencia pre-fortificación` = c(
+             tasa.de.referencia.prefortificacion.norte.por.diez.mil,
+             tasa.de.referencia.prefortificacion.centro.por.diez.mil,
+             tasa.de.referencia.prefortificacion.sur.por.diez.mil,
+             tasa.de.referencia.prefortificacion.CDMX.por.diez.mil
+           ),
+           `Prevalencia post-fortificación` = c(
+             tasa.de.referencia.postfortificacion.norte.por.diez.mil,
+             tasa.de.referencia.postfortificacion.centro.por.diez.mil,
+             tasa.de.referencia.postfortificacion.sur.por.diez.mil,
+             tasa.de.referencia.postfortificacion.CDMX.por.diez.mil
+           ),
+           `Razón de prevalencia` = c(
+             razon.prevalencia.norte,
+             razon.prevalencia.centro,
+             razon.prevalencia.sur,
+             razon.prevalencia.CDMX
+           ),
+           `Disminución de prevalencia` = c(
+             disminucion.prevalencia.norte,
+             disminucion.prevalencia.centro,
+             disminucion.prevalencia.sur,
+             disminucion.prevalencia.CDMX
+           )
+            
+           ) 
+tabla.prevalencia.regiones
+```
+
+
+```{r Tabla de resultados prevalencia, echo=F, results='hold', include=FALSE}
+library(kableExtra)
+tabla.regiones<-tabla.prevalencia.regiones %>%
+  kbl()%>%
+  kable_styling(font_size = 11)%>%
+  kable_minimal()
+tabla.regiones
+```
+
+## Métricas de interés con IC
+
+```{r Métricas de interés con IC, echo=T, include=F, results='hold'}
+razon.prevalencia.norte
+razon.prevalencia.centro
+razon.prevalencia.sur
+razon.prevalencia.CDMX
+disminucion.prevalencia.norte
+disminucion.prevalencia.centro
+disminucion.prevalencia.sur
+disminucion.prevalencia.CDMX
+quantile.dist.pre.norte
+quantile.dist.pre.centro
+quantile.dist.pre.sur
+quantile.dist.pre.CDMX
+quantile.dist.post.norte
+quantile.dist.post.centro
+quantile.dist.post.sur
+quantile.dist.post.CDMX
+quantile.razon.prevalencia.norte
+quantile.razon.prevalencia.centro
+quantile.razon.prevalencia.sur
+quantile.razon.prevalencia.CDMX
+quantile.disminucion.prevalencia.norte
+quantile.disminucion.prevalencia.centro
+quantile.disminucion.prevalencia.sur
+quantile.disminucion.prevalencia.CDMX
+
+tabla.prevalencia.regiones.2<-data.frame(
+          `Región`=c("Norte", "Centro", "Sur", "CDMX"),
+           `Prevalencia pre-fortificación` = c(
+             paste(round(tasa.de.referencia.prefortificacion.norte.por.diez.mil , digits = 2),
+                   "(",
+                   round(quantile.dist.pre.norte[["2.5%"]] , digits = 2),
+                   "a",
+                   round(quantile.dist.pre.norte[["97.5%"]] , digits = 2)
+                   ,
+                   ")"),
+             paste(round(tasa.de.referencia.prefortificacion.centro.por.diez.mil , digits = 2),
+                   "(",
+                   round(quantile.dist.pre.centro[["2.5%"]] , digits = 2),
+                   "a",
+                   round(quantile.dist.pre.centro[["97.5%"]] , digits = 2)
+                   ,
+                   ")"),
+             paste(round(tasa.de.referencia.prefortificacion.sur.por.diez.mil , digits = 2),
+                   "(",
+                   round(quantile.dist.pre.sur[["2.5%"]] , digits = 2),
+                   "a",
+                   round(quantile.dist.pre.sur[["97.5%"]] , digits = 2)
+                   ,
+                   ")"),
+             paste(round(tasa.de.referencia.prefortificacion.CDMX.por.diez.mil , digits = 2),
+                   "(",
+                   round(quantile.dist.pre.CDMX[["2.5%"]] , digits = 2),
+                   "a",
+                   round(quantile.dist.pre.CDMX[["97.5%"]] , digits = 2)
+                   ,
+                   ")")
+           ),`Prevalencia post-fortificación` = c(
+             paste(round(tasa.de.referencia.postfortificacion.norte.por.diez.mil , digits = 2),
+                   "(",
+                   round(quantile.dist.pre.norte[["2.5%"]] , digits = 2),
+                   "a",
+                   round(quantile.dist.pre.norte[["97.5%"]] , digits = 2)
+                   ,
+                   ")"),
+             paste(round(tasa.de.referencia.postfortificacion.centro.por.diez.mil , digits = 2),
+                   "(",
+                   round(quantile.dist.pre.centro[["2.5%"]] , digits = 2),
+                   "a",
+                   round(quantile.dist.pre.centro[["97.5%"]] , digits = 2)
+                   ,
+                   ")"),
+             paste(round(tasa.de.referencia.postfortificacion.sur.por.diez.mil , digits = 2),
+                   "(",
+                   round(quantile.dist.pre.sur[["2.5%"]] , digits = 2),
+                   "a",
+                   round(quantile.dist.pre.sur[["97.5%"]] , digits = 2)
+                   ,
+                   ")"),
+             paste(round(tasa.de.referencia.postfortificacion.CDMX.por.diez.mil , digits = 2),
+                   "(",
+                   round(quantile.dist.pre.CDMX[["2.5%"]] , digits = 2),
+                   "a",
+                   round(quantile.dist.pre.CDMX[["97.5%"]] , digits = 2)
+                   ,
+                   ")")
+           ),
+           `Razón de prevalencia` = c(
+             paste(round(razon.prevalencia.norte,digits = 2), 
+                   "(",
+                   round(quantile.razon.prevalencia.norte[["2.5%"]],digits = 2),
+                   "a",
+                   round(quantile.razon.prevalencia.norte[["97.5%"]],digits = 2),
+                   ")"),
+             paste(round(razon.prevalencia.centro,digits = 2), 
+                   "(",
+                   round(quantile.razon.prevalencia.centro[["2.5%"]],digits = 2),
+                   "a",
+                   round(quantile.razon.prevalencia.centro[["97.5%"]],digits = 2),
+                   ")"),
+             paste(round(razon.prevalencia.sur,digits = 2), 
+                   "(",
+                   round(quantile.razon.prevalencia.sur[["2.5%"]],digits = 2),
+                   "a",
+                   round(quantile.razon.prevalencia.sur[["97.5%"]],digits = 2),
+                   ")"),
+             paste(round(razon.prevalencia.CDMX,digits = 2), 
+                   "(",
+                   round(quantile.razon.prevalencia.CDMX[["2.5%"]],digits = 2),
+                   "a",
+                   round(quantile.razon.prevalencia.CDMX[["97.5%"]],digits = 2),
+                   ")")
+             
+           ),
+           `Disminución de prevalencia` = c(
+             paste(round(disminucion.prevalencia.norte,digits = 2),
+                   "(",
+                   round(quantile.disminucion.prevalencia.norte[["2.5%"]], digits = 2),
+                   "a",
+                   round(quantile.disminucion.prevalencia.norte[["97.5%"]], digits = 2),
+                   ")"),
+             paste(round(disminucion.prevalencia.centro,digits = 2),
+                   "(",
+                   round(quantile.disminucion.prevalencia.centro[["2.5%"]], digits = 2),
+                   "a",
+                   round(quantile.disminucion.prevalencia.centro[["97.5%"]], digits = 2),
+                   ")"),
+              paste(round(disminucion.prevalencia.sur,digits = 2),
+                   "(",
+                   round(quantile.disminucion.prevalencia.sur[["2.5%"]], digits = 2),
+                   "a",
+                   round(quantile.disminucion.prevalencia.sur[["97.5%"]], digits = 2),
+                   ")"),
+              paste(round(disminucion.prevalencia.CDMX,digits = 2),
+                   "(",
+                   round(quantile.disminucion.prevalencia.CDMX[["2.5%"]], digits = 2),
+                   "a",
+                   round(quantile.disminucion.prevalencia.CDMX[["97.5%"]], digits = 2),
+                   ")")
+           )
+            
+           ) 
+tabla.prevalencia.regiones.2
+```
+
+```{r Tabla de resultado, echo=F, results='hold', include=TRUE}
+library(kableExtra)
+tabla.regiones.2<-tabla.prevalencia.regiones.2 %>%
+  kbl()%>%
+  kable_styling(font_size = 11)%>%
+  kable_minimal()
+tabla.regiones.2
+```
+
+## Mapeo regional disminución de prevalencia
+
+### Integración de información al shapefile
+
+```{r Mapeo de regiones, results='hold', echo=FALSE, include=TRUE}
+# Cargamos librería
+library(rnaturalearth)
+library(rnaturalearthdata)
+# Leemos los contornos de INEGI
+require(sf)
+shape_estados <- read_sf(dsn ="/home/domingo/Documentos/Mapas_en_R/conjunto_de_datos",
+                         layer = "00ent"
+                 #         encoding = "UTF-8"
+                 #          use_iconv = TRUE
+                         )
+class(shape_estados)
+
+# Asignemos el valor a cada región
+mapeo.de.casos<-data.frame(shape_estados$NOMGEO,
+              "Razon prevalencia regional" = rep(NA,32),
+              shape_estados$CVE_ENT)
+
+## Selección región norte.
+norte<-c("Baja California",
+         "Baja California Sur",
+         "Coahuila de Zaragoza",
+         "Chihuahua",
+         "Durango",
+         "Nuevo León",
+         "Sinaloa",
+         "Sonora",
+         "Tamaulipas",
+         "Zacatecas")
+casos.norte<-mapeo.de.casos %>%
+  filter(shape_estados.NOMGEO %in% norte)
+# Asignamos razón de prevalencia regional
+casos.norte$Razon.prevalencia.regional<- round(razon.prevalencia.norte, digits = 2)
+
+## Selección región centro
+centro<-c("Aguascalientes",
+          "Colima",
+          "Guanajuato",
+          "Hidalgo",
+          "Jalisco",
+          "México",
+          "Michoacán de Ocampo",
+          "Nayarit",
+          "Querétaro",
+          "San Luis Potosí",
+          "Tlaxcala")
+casos.centro<-mapeo.de.casos %>%
+  filter(shape_estados.NOMGEO %in% centro)
+# Asignamos razón de prevalencia regional
+casos.centro$Razon.prevalencia.regional<- round(razon.prevalencia.centro, digits = 2)
+
+## Selección región sur
+sur<-c("Campeche",
+       "Chiapas",
+       "Guerrero",
+       "Morelos",
+       "Oaxaca",
+       "Puebla",
+       "Quintana Roo",
+       "Tabasco",
+       "Veracruz de Ignacio de la Llave",
+       "Yucatán")
+casos.sur<-mapeo.de.casos %>%
+  filter(shape_estados.NOMGEO %in% sur)
+
+# Asignamos razón de prevalencia regional
+casos.sur$Razon.prevalencia.regional<- round(razon.prevalencia.sur, digits = 2)
+
+## Región CDMX
+casos.CDMX<-mapeo.de.casos %>%
+  filter(shape_estados.NOMGEO == "Ciudad de México")
+# Asignamos razón de prevalencia regional
+casos.CDMX$Razon.prevalencia.regional<- round(razon.prevalencia.CDMX, digits = 2)
+
+# Integramos todo en un solo dataset
+mapeo.de.casos.regionales.2<-rbind(casos.norte,
+      casos.centro,
+      casos.sur,
+      casos.CDMX)
+# Los ponemos en orden alfabético
+mapeo.de.casos.regionales.2<-mapeo.de.casos.regionales.2[order(mapeo.de.casos.regionales.2$shape_estados.CVE_ENT),]
+# Agregamos los valores al shape de estados
+shape_estados$Ranking <-mapeo.de.casos.regionales.2$Razon.prevalencia.regional
+```
+
+### Mapeo de razón de prevalencia por regiones
+
+```{r Creación el mapa, echo=FALSE, results='hold'}
+library(ggplot2)
+library(ggspatial)
+library(sf)
+library(ggrepel)
+coordenadas.centroides.estados<-st_coordinates(st_centroid(shape_estados$geometry))
+shape_estados<-cbind(shape_estados, coordenadas.centroides.estados)
+ggplot(data = shape_estados) +
+    geom_sf(aes(fill=Ranking)) +
+  xlab("Longitud")+
+  ylab("Latitud")+
+  ggtitle("Razón de prevalencia DTN en México", subtitle = "Prevalencia post-fortificación / prevalencia pre-fortificación")+
+#  guides(fill=guide_legend(title = "Casos totales \npor zona"))+
+  scale_fill_viridis_c(alpha = 0.6, 
+                       direction = 1, 
+                       option = "cividis",
+                       name="Razón de prevalencia \npor zona geográfica") +
+  theme_bw() +
+  annotation_scale(location = "bl", width_hint = 0.5)+
+  annotation_north_arrow(location = "bl", 
+                         which_north = "true", 
+                         pad_x = unit(8, "cm"), 
+                         pad_y = unit(4.5, "cm"), 
+                         style = north_arrow_fancy_orienteering) +
+  theme(panel.background = element_rect(fill = "aliceblue"),
+        panel.grid.major = element_line(color = "gray50", 
+                                        linetype = "dashed", 
+                                        size = 0.1))
+ggsave("Razon_prevalencia_por_zona.png", 
+       plot = last_plot(),
+       device = "png",
+       width = 20,
+       height = 9,
+       units = "cm",
+       dpi = 300)
+```
+
+### Mapeo de razón de prevalencia por regiones en inglés
+
+```{r Creación el mapa en ingles, echo=FALSE, results='hold'}
+library(ggplot2)
+library(ggspatial)
+library(sf)
+library(ggrepel)
+coordenadas.centroides.estados<-st_coordinates(st_centroid(shape_estados$geometry))
+shape_estados<-cbind(shape_estados, coordenadas.centroides.estados)
+
+ggplot(data = shape_estados) +
+    geom_sf(aes(fill=Ranking)) +
+  xlab("Longitude")+
+  ylab("Latitude")+
+  #ggtitle("Razón de prevalencia DTN en México", subtitle = "Prevalencia post-fortificación / prevalencia pre-fortificación")+
+#  guides(fill=guide_legend(title = "Casos totales \npor zona"))+
+  scale_fill_viridis_c(alpha = 0.6, 
+                       direction = 1, 
+                       option = "cividis",
+                       name="Regional \nprevalence \nratio") +
+  theme_bw() +
+  annotation_scale(location = "bl", width_hint = 0.5)+
+  annotation_north_arrow(location = "bl", 
+                         which_north = "true", 
+                         pad_x = unit(9.7, "cm"), 
+                         pad_y = unit(5.5, "cm"), 
+                         style = north_arrow_fancy_orienteering) +
+  theme(panel.background = element_rect(fill = "aliceblue"),
+        panel.grid.major = element_line(color = "gray50", 
+                                        linetype = "dashed", 
+                                        size = 0.1))+
+   theme(
+    plot.title   = element_text(family = "Times New Roman", face = "bold", size = 10),
+    legend.title = element_text(family = "Times New Roman", face = "bold",size = 10),
+    legend.text  = element_text(family = "Times New Roman", size = 10),
+    legend.spacing.y = unit(0, "pt"),
+    axis.title.x = element_text(family = "Times New Roman", size = 10),
+    axis.title.y = element_text(family = "Times New Roman", size = 10)
+   )
+ggsave("Razon_prevalencia_por_zona_ingles.jpeg", 
+       plot = last_plot(),
+       device = "jpeg",
+       width = 20,
+       height = 9,
+       units = "cm",
+       dpi = 600)
+```
+
+
