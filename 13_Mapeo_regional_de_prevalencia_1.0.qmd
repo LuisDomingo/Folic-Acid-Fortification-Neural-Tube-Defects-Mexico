@@ -190,15 +190,26 @@ IC.pre.fortificacion.norte$prevalencia <- IC.pre.fortificacion.norte$nacimientos
 IC.pre.fortificacion.norte$prevalencia_por_diez_mil <-IC.pre.fortificacion.norte$prevalencia*10000
 
 # Hacemos  remuestreos
-
 distribucion.pre.fortificacion.norte <- numeric(5000)
+n_años_pre_norte <- nrow(IC.pre.fortificacion.norte)
 
 for (i in 1:5000) {
-  distribucion.pre.fortificacion.norte[i]<-mean(sample(IC.pre.fortificacion.norte$prevalencia_por_diez_mil, 3, replace = T))
+  # 1. Remuestreamos índices
+  indices <- sample(1:n_años_pre_norte, n_años_pre_norte, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos
+  casos_muestra <- sum(IC.pre.fortificacion.norte$nacimientos.DTN[indices])
+  nacimientos_muestra <- sum(IC.pre.fortificacion.norte$nacimientos.prefortificacion.norte.años[indices])
+  
+  # 3. Calculamos tasa global ponderada
+  distribucion.pre.fortificacion.norte[i] <- (casos_muestra / nacimientos_muestra) * 10000
 }
+
 hist(distribucion.pre.fortificacion.norte)
+
 # Obtenemos el IC del 95%
 quantile.dist.pre.norte <- quantile(distribucion.pre.fortificacion.norte, c(0.025, 0.975))
+quantile.dist.pre.norte
 ```
 
 ### Tasa de referencia postfortificación norte
@@ -281,12 +292,21 @@ IC.post.fortificacion.norte$prevalencia <- IC.post.fortificacion.norte$nacimient
 IC.post.fortificacion.norte$prevalencia_por_diez_mil <-IC.post.fortificacion.norte$prevalencia*10000
 
 # Hacemos  remuestreos
-
 distribucion.post.fortificacion.norte <- numeric(5000)
+n_años_post_norte <- nrow(IC.post.fortificacion.norte)
 
 for (i in 1:5000) {
-  distribucion.post.fortificacion.norte[i]<-mean(sample(IC.post.fortificacion.norte$prevalencia_por_diez_mil, 3, replace = T))
+  # 1. Remuestreamos los índices (esto tomará 13 muestras con reemplazo)
+  indices <- sample(1:n_años_post_norte, n_años_post_norte, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos totales de esa muestra específica
+  casos_muestra <- sum(IC.post.fortificacion.norte$nacimientos.DTN[indices])
+  nacimientos_muestra <- sum(IC.post.fortificacion.norte$nacimientos.postfortificacion.norte.años[indices])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración
+  distribucion.post.fortificacion.norte[i] <- (casos_muestra / nacimientos_muestra) * 10000
 }
+
 hist(distribucion.post.fortificacion.norte)
 # Obtenemos el IC del 95%
 quantile.dist.post.norte <- quantile(distribucion.post.fortificacion.norte, c(0.025, 0.975))
@@ -371,12 +391,21 @@ IC.pre.fortificacion.centro$prevalencia <- IC.pre.fortificacion.centro$nacimient
 IC.pre.fortificacion.centro$prevalencia_por_diez_mil <-IC.pre.fortificacion.centro$prevalencia*10000
 
 # Hacemos  remuestreos
-
 distribucion.pre.fortificacion.centro <- numeric(5000)
+n_años_pre_centro <- nrow(IC.pre.fortificacion.centro)
 
 for (i in 1:5000) {
-  distribucion.pre.fortificacion.centro[i]<-mean(sample(IC.pre.fortificacion.centro$prevalencia_por_diez_mil, 3, replace = T))
+  # 1. Remuestreamos los índices 
+  indices <- sample(1:n_años_pre_centro, n_años_pre_centro, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos totales de esa muestra específica
+  casos_muestra <- sum(IC.pre.fortificacion.centro$nacimientos.DTN[indices])
+  nacimientos_muestra <- sum(IC.pre.fortificacion.centro$nacimientos.prefortificacion.centro.años[indices])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración
+  distribucion.pre.fortificacion.centro[i] <- (casos_muestra / nacimientos_muestra) * 10000
 }
+
 hist(distribucion.pre.fortificacion.centro)
 # Obtenemos el IC del 95%
 quantile.dist.pre.centro <- quantile(distribucion.pre.fortificacion.centro, c(0.025, 0.975))
@@ -464,9 +493,21 @@ IC.post.fortificacion.centro$prevalencia_por_diez_mil <-IC.post.fortificacion.ce
 # Hacemos  remuestreos
 distribucion.post.fortificacion.centro <- numeric(5000)
 
+# El dataframe IC.post.fortificacion.centro tiene 13 filas (13 años)
+n_años_post <- nrow(IC.post.fortificacion.centro)
+
 for (i in 1:5000) {
-  distribucion.post.fortificacion.centro[i]<-mean(sample(IC.post.fortificacion.centro$prevalencia_por_diez_mil, 3, replace = T))
+  # 1. Remuestreamos los índices de los años (n = 13)
+  indices <- sample(1:n_años_post, n_años_post, replace = TRUE)
+  
+  # 2. Sumamos los casos y los nacimientos totales de esa muestra específica
+  casos_muestra <- sum(IC.post.fortificacion.centro$nacimientos.DTN[indices])
+  nacimientos_muestra <- sum(IC.post.fortificacion.centro$nacimientos.postfortificacion.centro.años[indices])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración
+  distribucion.post.fortificacion.centro[i] <- (casos_muestra / nacimientos_muestra) * 10000
 }
+
 hist(distribucion.post.fortificacion.centro)
 # Obtenemos el IC del 95%
 quantile.dist.post.centro <- quantile(distribucion.post.fortificacion.centro, c(0.025, 0.975))
@@ -551,12 +592,21 @@ IC.pre.fortificacion.sur$prevalencia <- IC.pre.fortificacion.sur$nacimientos.DTN
 IC.pre.fortificacion.sur$prevalencia_por_diez_mil <-IC.pre.fortificacion.sur$prevalencia*10000
 
 # Hacemos  remuestreos
-
 distribucion.pre.fortificacion.sur <- numeric(5000)
+n_años_pre_sur <- nrow(IC.pre.fortificacion.sur)
 
 for (i in 1:5000) {
-  distribucion.pre.fortificacion.sur[i]<-mean(sample(IC.pre.fortificacion.sur$prevalencia_por_diez_mil, 3, replace = T))
+  # 1. Remuestreamos los índices 
+  indices <- sample(1:n_años_pre_sur, n_años_pre_sur, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos totales de esa muestra específica
+  casos_muestra <- sum(IC.pre.fortificacion.sur$nacimientos.DTN[indices])
+  nacimientos_muestra <- sum(IC.pre.fortificacion.sur$nacimientos.prefortificacion.sur.años[indices])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración
+  distribucion.pre.fortificacion.sur[i] <- (casos_muestra / nacimientos_muestra) * 10000
 }
+
 hist(distribucion.pre.fortificacion.sur)
 # Obtenemos el IC del 95%
 quantile.dist.pre.sur <- quantile(distribucion.pre.fortificacion.sur, c(0.025, 0.975))
@@ -643,10 +693,20 @@ IC.post.fortificacion.sur$prevalencia_por_diez_mil <-IC.post.fortificacion.sur$p
 
 # Hacemos  remuestreos
 distribucion.post.fortificacion.sur <- numeric(5000)
+n_años_post_sur <- nrow(IC.post.fortificacion.sur)
 
 for (i in 1:5000) {
-  distribucion.post.fortificacion.sur[i]<-mean(sample(IC.post.fortificacion.sur$prevalencia_por_diez_mil, 3, replace = T))
+  # 1. Remuestreamos los índices (tomará 13 muestras con reemplazo)
+  indices <- sample(1:n_años_post_sur, n_años_post_sur, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos totales de esa muestra específica
+  casos_muestra <- sum(IC.post.fortificacion.sur$nacimientos.DTN[indices])
+  nacimientos_muestra <- sum(IC.post.fortificacion.sur$nacimientos.postfortificacion.sur.años[indices])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración
+  distribucion.post.fortificacion.sur[i] <- (casos_muestra / nacimientos_muestra) * 10000
 }
+
 hist(distribucion.post.fortificacion.sur)
 # Obtenemos el IC del 95%
 quantile.dist.post.sur <- quantile(distribucion.post.fortificacion.sur, c(0.025, 0.975))
@@ -705,10 +765,20 @@ IC.pre.fortificacion.CDMX$prevalencia_por_diez_mil <-IC.pre.fortificacion.CDMX$p
 
 # Hacemos  remuestreos
 distribucion.pre.fortificacion.CDMX <- numeric(5000)
+n_años_pre_CDMX <- nrow(IC.pre.fortificacion.CDMX)
 
 for (i in 1:5000) {
-  distribucion.pre.fortificacion.CDMX[i]<-mean(sample(IC.pre.fortificacion.CDMX$prevalencia_por_diez_mil, 3, replace = T))
+  # 1. Remuestreamos los índices 
+  indices <- sample(1:n_años_pre_CDMX, n_años_pre_CDMX, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos totales de esa muestra específica
+  casos_muestra <- sum(IC.pre.fortificacion.CDMX$nacimientos.DTN[indices])
+  nacimientos_muestra <- sum(IC.pre.fortificacion.CDMX$nacimientos.prefortificacion.CDMX.años[indices])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración
+  distribucion.pre.fortificacion.CDMX[i] <- (casos_muestra / nacimientos_muestra) * 10000
 }
+
 hist(distribucion.pre.fortificacion.CDMX)
 # Obtenemos el IC del 95%
 quantile.dist.pre.CDMX <- quantile(distribucion.pre.fortificacion.CDMX, c(0.025, 0.975))
@@ -768,10 +838,20 @@ IC.post.fortificacion.CDMX$prevalencia_por_diez_mil <-IC.post.fortificacion.CDMX
 
 # Hacemos  remuestreos
 distribucion.post.fortificacion.CDMX <- numeric(5000)
+n_años_post_CDMX <- nrow(IC.post.fortificacion.CDMX)
 
 for (i in 1:5000) {
-  distribucion.post.fortificacion.CDMX[i]<-mean(sample(IC.post.fortificacion.CDMX$prevalencia_por_diez_mil, 3, replace = T))
+  # 1. Remuestreamos los índices (tomará 13 muestras con reemplazo)
+  indices <- sample(1:n_años_post_CDMX, n_años_post_CDMX, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos totales de esa muestra específica
+  casos_muestra <- sum(IC.post.fortificacion.CDMX$nacimientos.DTN[indices])
+  nacimientos_muestra <- sum(IC.post.fortificacion.CDMX$nacimientos.postfortificacion.CDMX.años[indices])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración
+  distribucion.post.fortificacion.CDMX[i] <- (casos_muestra / nacimientos_muestra) * 10000
 }
+
 hist(distribucion.post.fortificacion.CDMX)
 # Obtenemos el IC del 95%
 quantile.dist.post.CDMX <- quantile(distribucion.post.fortificacion.CDMX, c(0.025, 0.975))
@@ -816,10 +896,28 @@ disminucion.prevalencia.CDMX
 ```{r IC razon de prevalencia Norte, echo=FALSE, include=FALSE}
 # Remuestreo razón de prevalencia región norte
 distribucion.razon.prevalencia.norte <- numeric(5000)
+n_años_post_norte <- nrow(IC.post.fortificacion.norte)
+n_años_pre_norte <- nrow(IC.pre.fortificacion.norte)
 
 for (i in 1:5000) {
-  distribucion.razon.prevalencia.norte[i]<- mean(sample(IC.post.fortificacion.norte$prevalencia_por_diez_mil, 3, replace = T)) / mean(sample(IC.pre.fortificacion.norte$prevalencia_por_diez_mil, 3, replace = T))
+  # 1. Remuestreamos índices para pre y post
+  indices_post <- sample(1:n_años_post_norte, n_años_post_norte, replace = TRUE)
+  indices_pre <- sample(1:n_años_pre_norte, n_años_pre_norte, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos para ambas muestras
+  casos_post <- sum(IC.post.fortificacion.norte$nacimientos.DTN[indices_post])
+  nac_post <- sum(IC.post.fortificacion.norte$nacimientos.postfortificacion.norte.años[indices_post])
+  
+  casos_pre <- sum(IC.pre.fortificacion.norte$nacimientos.DTN[indices_pre])
+  nac_pre <- sum(IC.pre.fortificacion.norte$nacimientos.prefortificacion.norte.años[indices_pre])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración y obtenemos la razón
+  tasa_post_sim <- (casos_post / nac_post) * 10000
+  tasa_pre_sim <- (casos_pre / nac_pre) * 10000
+  
+  distribucion.razon.prevalencia.norte[i] <- tasa_post_sim / tasa_pre_sim
 }
+
 hist(distribucion.razon.prevalencia.norte)
 # Obtenemos el IC del 95%
 quantile.razon.prevalencia.norte <- quantile(distribucion.razon.prevalencia.norte, c(0.025, 0.975))
@@ -831,11 +929,28 @@ quantile.razon.prevalencia.norte
 ```{r IC disminución de prevalencia Norte, echo=FALSE, include=FALSE}
 # Remuestreo disminución de prevalencia región norte
 distribucion.disminucion.prevalencia.norte <- numeric(5000)
+n_años_post_norte <- nrow(IC.post.fortificacion.norte)
+n_años_pre_norte <- nrow(IC.pre.fortificacion.norte)
 
 for (i in 1:5000) {
-  distribucion.disminucion.prevalencia.norte[i]<-
-    mean(sample(IC.pre.fortificacion.norte$prevalencia_por_diez_mil, 3, replace = T)) - mean(sample(IC.post.fortificacion.norte$prevalencia_por_diez_mil, 3, replace = T)) 
+  # 1. Remuestreamos índices para pre y post
+  indices_post <- sample(1:n_años_post_norte, n_años_post_norte, replace = TRUE)
+  indices_pre <- sample(1:n_años_pre_norte, n_años_pre_norte, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos para ambas muestras
+  casos_post <- sum(IC.post.fortificacion.norte$nacimientos.DTN[indices_post])
+  nac_post <- sum(IC.post.fortificacion.norte$nacimientos.postfortificacion.norte.años[indices_post])
+  
+  casos_pre <- sum(IC.pre.fortificacion.norte$nacimientos.DTN[indices_pre])
+  nac_pre <- sum(IC.pre.fortificacion.norte$nacimientos.prefortificacion.norte.años[indices_pre])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración y obtenemos la disminución (Pre - Post)
+  tasa_post_sim <- (casos_post / nac_post) * 10000
+  tasa_pre_sim <- (casos_pre / nac_pre) * 10000
+  
+  distribucion.disminucion.prevalencia.norte[i] <- tasa_pre_sim - tasa_post_sim
 }
+
 hist(distribucion.disminucion.prevalencia.norte)
 # Obtenemos el IC del 95%
 quantile.disminucion.prevalencia.norte <- quantile(distribucion.disminucion.prevalencia.norte, c(0.025, 0.975))
@@ -849,10 +964,28 @@ quantile.disminucion.prevalencia.norte
 ```{r IC razon de prevalencia Centro, echo=FALSE, include=FALSE}
 # Remuestreo razón de prevalencia región centro
 distribucion.razon.prevalencia.centro <- numeric(5000)
+n_años_post_centro <- nrow(IC.post.fortificacion.centro)
+n_años_pre_centro <- nrow(IC.pre.fortificacion.centro)
 
 for (i in 1:5000) {
-  distribucion.razon.prevalencia.centro[i]<- mean(sample(IC.post.fortificacion.centro$prevalencia_por_diez_mil, 3, replace = T)) / mean(sample(IC.pre.fortificacion.centro$prevalencia_por_diez_mil, 3, replace = T))
+  # 1. Remuestreamos índices para pre y post
+  indices_post <- sample(1:n_años_post_centro, n_años_post_centro, replace = TRUE)
+  indices_pre <- sample(1:n_años_pre_centro, n_años_pre_centro, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos para ambas muestras
+  casos_post <- sum(IC.post.fortificacion.centro$nacimientos.DTN[indices_post])
+  nac_post <- sum(IC.post.fortificacion.centro$nacimientos.postfortificacion.centro.años[indices_post])
+  
+  casos_pre <- sum(IC.pre.fortificacion.centro$nacimientos.DTN[indices_pre])
+  nac_pre <- sum(IC.pre.fortificacion.centro$nacimientos.prefortificacion.centro.años[indices_pre])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración y obtenemos la razón
+  tasa_post_sim <- (casos_post / nac_post) * 10000
+  tasa_pre_sim <- (casos_pre / nac_pre) * 10000
+  
+  distribucion.razon.prevalencia.centro[i] <- tasa_post_sim / tasa_pre_sim
 }
+
 hist(distribucion.razon.prevalencia.centro)
 # Obtenemos el IC del 95%
 quantile.razon.prevalencia.centro <- quantile(distribucion.razon.prevalencia.centro, c(0.025, 0.975))
@@ -864,11 +997,28 @@ quantile.razon.prevalencia.centro
 ```{r IC disminución de prevalencia Centro, echo=FALSE, include=FALSE}
 # Remuestreo disminución de prevalencia región centro
 distribucion.disminucion.prevalencia.centro <- numeric(5000)
+n_años_post_centro <- nrow(IC.post.fortificacion.centro)
+n_años_pre_centro <- nrow(IC.pre.fortificacion.centro)
 
 for (i in 1:5000) {
-  distribucion.disminucion.prevalencia.centro[i]<-
-    mean(sample(IC.pre.fortificacion.centro$prevalencia_por_diez_mil, 3, replace = T)) - mean(sample(IC.post.fortificacion.centro$prevalencia_por_diez_mil, 3, replace = T)) 
+  # 1. Remuestreamos índices para pre y post
+  indices_post <- sample(1:n_años_post_centro, n_años_post_centro, replace = TRUE)
+  indices_pre <- sample(1:n_años_pre_centro, n_años_pre_centro, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos para ambas muestras
+  casos_post <- sum(IC.post.fortificacion.centro$nacimientos.DTN[indices_post])
+  nac_post <- sum(IC.post.fortificacion.centro$nacimientos.postfortificacion.centro.años[indices_post])
+  
+  casos_pre <- sum(IC.pre.fortificacion.centro$nacimientos.DTN[indices_pre])
+  nac_pre <- sum(IC.pre.fortificacion.centro$nacimientos.prefortificacion.centro.años[indices_pre])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración y obtenemos la disminución (Pre - Post)
+  tasa_post_sim <- (casos_post / nac_post) * 10000
+  tasa_pre_sim <- (casos_pre / nac_pre) * 10000
+  
+  distribucion.disminucion.prevalencia.centro[i] <- tasa_pre_sim - tasa_post_sim
 }
+
 hist(distribucion.disminucion.prevalencia.centro)
 # Obtenemos el IC del 95%
 quantile.disminucion.prevalencia.centro <- quantile(distribucion.disminucion.prevalencia.centro, c(0.025, 0.975))
@@ -882,10 +1032,28 @@ quantile.disminucion.prevalencia.centro
 ```{r IC razon de prevalencia Sur, echo=FALSE, include=FALSE}
 # Remuestreo razón de prevalencia región sur
 distribucion.razon.prevalencia.sur <- numeric(5000)
+n_años_post_sur <- nrow(IC.post.fortificacion.sur)
+n_años_pre_sur <- nrow(IC.pre.fortificacion.sur)
 
 for (i in 1:5000) {
-  distribucion.razon.prevalencia.sur[i]<- mean(sample(IC.post.fortificacion.sur$prevalencia_por_diez_mil, 3, replace = T)) / mean(sample(IC.pre.fortificacion.sur$prevalencia_por_diez_mil, 3, replace = T))
+  # 1. Remuestreamos índices para pre y post
+  indices_post <- sample(1:n_años_post_sur, n_años_post_sur, replace = TRUE)
+  indices_pre <- sample(1:n_años_pre_sur, n_años_pre_sur, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos para ambas muestras
+  casos_post <- sum(IC.post.fortificacion.sur$nacimientos.DTN[indices_post])
+  nac_post <- sum(IC.post.fortificacion.sur$nacimientos.postfortificacion.sur.años[indices_post])
+  
+  casos_pre <- sum(IC.pre.fortificacion.sur$nacimientos.DTN[indices_pre])
+  nac_pre <- sum(IC.pre.fortificacion.sur$nacimientos.prefortificacion.sur.años[indices_pre])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración y obtenemos la razón
+  tasa_post_sim <- (casos_post / nac_post) * 10000
+  tasa_pre_sim <- (casos_pre / nac_pre) * 10000
+  
+  distribucion.razon.prevalencia.sur[i] <- tasa_post_sim / tasa_pre_sim
 }
+
 hist(distribucion.razon.prevalencia.sur)
 # Obtenemos el IC del 95%
 quantile.razon.prevalencia.sur <- quantile(distribucion.razon.prevalencia.sur, c(0.025, 0.975))
@@ -897,11 +1065,28 @@ quantile.razon.prevalencia.sur
 ```{r IC disminución de prevalencia Sur, echo=FALSE, include=FALSE}
 # Remuestreo disminución de prevalencia región sur
 distribucion.disminucion.prevalencia.sur <- numeric(5000)
+n_años_post_sur <- nrow(IC.post.fortificacion.sur)
+n_años_pre_sur <- nrow(IC.pre.fortificacion.sur)
 
 for (i in 1:5000) {
-  distribucion.disminucion.prevalencia.sur[i]<-
-    mean(sample(IC.pre.fortificacion.sur$prevalencia_por_diez_mil, 3, replace = T)) - mean(sample(IC.post.fortificacion.sur$prevalencia_por_diez_mil, 3, replace = T)) 
+  # 1. Remuestreamos índices para pre y post
+  indices_post <- sample(1:n_años_post_sur, n_años_post_sur, replace = TRUE)
+  indices_pre <- sample(1:n_años_pre_sur, n_años_pre_sur, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos para ambas muestras
+  casos_post <- sum(IC.post.fortificacion.sur$nacimientos.DTN[indices_post])
+  nac_post <- sum(IC.post.fortificacion.sur$nacimientos.postfortificacion.sur.años[indices_post])
+  
+  casos_pre <- sum(IC.pre.fortificacion.sur$nacimientos.DTN[indices_pre])
+  nac_pre <- sum(IC.pre.fortificacion.sur$nacimientos.prefortificacion.sur.años[indices_pre])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración y obtenemos la disminución (Pre - Post)
+  tasa_post_sim <- (casos_post / nac_post) * 10000
+  tasa_pre_sim <- (casos_pre / nac_pre) * 10000
+  
+  distribucion.disminucion.prevalencia.sur[i] <- tasa_pre_sim - tasa_post_sim
 }
+
 hist(distribucion.disminucion.prevalencia.sur)
 # Obtenemos el IC del 95%
 quantile.disminucion.prevalencia.sur <- quantile(distribucion.disminucion.prevalencia.sur, c(0.025, 0.975))
@@ -915,10 +1100,28 @@ quantile.disminucion.prevalencia.sur
 ```{r IC razon de prevalencia CDMX, echo=FALSE, include=FALSE}
 # Remuestreo razón de prevalencia región CDMX
 distribucion.razon.prevalencia.CDMX <- numeric(5000)
+n_años_post_CDMX <- nrow(IC.post.fortificacion.CDMX)
+n_años_pre_CDMX <- nrow(IC.pre.fortificacion.CDMX)
 
 for (i in 1:5000) {
-  distribucion.razon.prevalencia.CDMX[i]<- mean(sample(IC.post.fortificacion.CDMX$prevalencia_por_diez_mil, 3, replace = T)) / mean(sample(IC.pre.fortificacion.CDMX$prevalencia_por_diez_mil, 3, replace = T))
+  # 1. Remuestreamos índices para pre y post
+  indices_post <- sample(1:n_años_post_CDMX, n_años_post_CDMX, replace = TRUE)
+  indices_pre <- sample(1:n_años_pre_CDMX, n_años_pre_CDMX, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos para ambas muestras
+  casos_post <- sum(IC.post.fortificacion.CDMX$nacimientos.DTN[indices_post])
+  nac_post <- sum(IC.post.fortificacion.CDMX$nacimientos.postfortificacion.CDMX.años[indices_post])
+  
+  casos_pre <- sum(IC.pre.fortificacion.CDMX$nacimientos.DTN[indices_pre])
+  nac_pre <- sum(IC.pre.fortificacion.CDMX$nacimientos.prefortificacion.CDMX.años[indices_pre])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración y obtenemos la razón
+  tasa_post_sim <- (casos_post / nac_post) * 10000
+  tasa_pre_sim <- (casos_pre / nac_pre) * 10000
+  
+  distribucion.razon.prevalencia.CDMX[i] <- tasa_post_sim / tasa_pre_sim
 }
+
 hist(distribucion.razon.prevalencia.CDMX)
 # Obtenemos el IC del 95%
 quantile.razon.prevalencia.CDMX <- quantile(distribucion.razon.prevalencia.CDMX, c(0.025, 0.975))
@@ -930,11 +1133,28 @@ quantile.razon.prevalencia.CDMX
 ```{r IC disminución de prevalencia CDMX, echo=FALSE, include=FALSE}
 # Remuestreo disminución de prevalencia región CDMX
 distribucion.disminucion.prevalencia.CDMX <- numeric(5000)
+n_años_post_CDMX <- nrow(IC.post.fortificacion.CDMX)
+n_años_pre_CDMX <- nrow(IC.pre.fortificacion.CDMX)
 
 for (i in 1:5000) {
-  distribucion.disminucion.prevalencia.CDMX[i]<-
-    mean(sample(IC.pre.fortificacion.CDMX$prevalencia_por_diez_mil, 3, replace = T)) - mean(sample(IC.post.fortificacion.CDMX$prevalencia_por_diez_mil, 3, replace = T)) 
+  # 1. Remuestreamos índices para pre y post
+  indices_post <- sample(1:n_años_post_CDMX, n_años_post_CDMX, replace = TRUE)
+  indices_pre <- sample(1:n_años_pre_CDMX, n_años_pre_CDMX, replace = TRUE)
+  
+  # 2. Sumamos casos y nacimientos para ambas muestras
+  casos_post <- sum(IC.post.fortificacion.CDMX$nacimientos.DTN[indices_post])
+  nac_post <- sum(IC.post.fortificacion.CDMX$nacimientos.postfortificacion.CDMX.años[indices_post])
+  
+  casos_pre <- sum(IC.pre.fortificacion.CDMX$nacimientos.DTN[indices_pre])
+  nac_pre <- sum(IC.pre.fortificacion.CDMX$nacimientos.prefortificacion.CDMX.años[indices_pre])
+  
+  # 3. Calculamos la tasa global ponderada de la iteración y obtenemos la disminución (Pre - Post)
+  tasa_post_sim <- (casos_post / nac_post) * 10000
+  tasa_pre_sim <- (casos_pre / nac_pre) * 10000
+  
+  distribucion.disminucion.prevalencia.CDMX[i] <- tasa_pre_sim - tasa_post_sim
 }
+
 hist(distribucion.disminucion.prevalencia.CDMX)
 # Obtenemos el IC del 95%
 quantile.disminucion.prevalencia.CDMX <- quantile(distribucion.disminucion.prevalencia.CDMX, c(0.025, 0.975))
@@ -1058,30 +1278,30 @@ tabla.prevalencia.regiones.2<-data.frame(
            ),`Prevalencia post-fortificación` = c(
              paste(round(tasa.de.referencia.postfortificacion.norte.por.diez.mil , digits = 2),
                    "(",
-                   round(quantile.dist.pre.norte[["2.5%"]] , digits = 2),
+                   round(quantile.dist.post.norte[["2.5%"]] , digits = 2),
                    "a",
-                   round(quantile.dist.pre.norte[["97.5%"]] , digits = 2)
+                   round(quantile.dist.post.norte[["97.5%"]] , digits = 2)
                    ,
                    ")"),
              paste(round(tasa.de.referencia.postfortificacion.centro.por.diez.mil , digits = 2),
                    "(",
-                   round(quantile.dist.pre.centro[["2.5%"]] , digits = 2),
+                   round(quantile.dist.post.centro[["2.5%"]] , digits = 2),
                    "a",
-                   round(quantile.dist.pre.centro[["97.5%"]] , digits = 2)
+                   round(quantile.dist.post.centro[["97.5%"]] , digits = 2)
                    ,
                    ")"),
              paste(round(tasa.de.referencia.postfortificacion.sur.por.diez.mil , digits = 2),
                    "(",
-                   round(quantile.dist.pre.sur[["2.5%"]] , digits = 2),
+                   round(quantile.dist.post.sur[["2.5%"]] , digits = 2),
                    "a",
-                   round(quantile.dist.pre.sur[["97.5%"]] , digits = 2)
+                   round(quantile.dist.post.sur[["97.5%"]] , digits = 2)
                    ,
                    ")"),
              paste(round(tasa.de.referencia.postfortificacion.CDMX.por.diez.mil , digits = 2),
                    "(",
-                   round(quantile.dist.pre.CDMX[["2.5%"]] , digits = 2),
+                   round(quantile.dist.post.CDMX[["2.5%"]] , digits = 2),
                    "a",
-                   round(quantile.dist.pre.CDMX[["97.5%"]] , digits = 2)
+                   round(quantile.dist.post.CDMX[["97.5%"]] , digits = 2)
                    ,
                    ")")
            ),
@@ -1141,6 +1361,8 @@ tabla.prevalencia.regiones.2<-data.frame(
             
            ) 
 tabla.prevalencia.regiones.2
+# Exportar la tabla de resultados con intervalos de confianza a CSV
+write.csv(tabla.prevalencia.regiones.2, "tabla_prevalencia_regiones_con_IC.csv", row.names = FALSE, fileEncoding = "UTF-8")
 ```
 
 ```{r Tabla de resultado, echo=F, results='hold', include=TRUE}
