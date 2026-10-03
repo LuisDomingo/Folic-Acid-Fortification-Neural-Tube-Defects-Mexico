@@ -1,0 +1,267 @@
+---
+title: "Prevalencia de DTN a través del tiempo"
+author: "Domingo Martínez"
+date: "`r Sys.Date()`"
+output: 
+  html_document:       # El output controla los parámetros de salida del renderizado
+    collapsed: false            # Contraer celdas de salida
+    code_folding: show          # Mostrar el código
+    toc: true                   # Mostrar la tabla de contenidos
+    toc_depth: 3                # Niveles de títulos que se mostrarán
+    toc_float: true             # Índices o contenidos flotantes
+    smooth_scroll: true         # Activar el scroll
+    highlight: kate             # Destacar
+    df_print: paged             # Mostrar los dataframes en páginas
+    number_sections: true       # Numeración de contenidos
+    theme: flatly               # Tema gráfico
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+# Lectura de las bases de datos
+```{r Lectura de la bd, include = FALSE, results='hide', warning=F}
+# Defectos de tubo neural
+tb.DTN<-read_csv("tb.DTN.curado.2021-2005.csv") 
+str(tb.DTN)
+# Nacidos vivos
+nacimientos.en.mexico.2005_2021<-read_csv("Nacimientos_en_Mexico_2005-2021_INEGI.csv")
+muertes.fetales.en.mexico.1985_2021<-read_csv("Base.de.datos.Obito.1985-2021.csv")
+# Nacidos muertos (muertes fetales)
+```
+
+En este script, vamos graficar la prevalencia de cada tipo de DTN ponderada por cada 10000 nacimientos (incluyendo nacidos vivos y nacidos muertos), del año 2005 al 2021.
+
+El plan es hacer una gráfica de barras apiladas, donde cada color de barra es un tipo de defecto. Y en el eje horizontal tenemos los años, mientras que en el eje vertical tenemos la prevalancia por cada 10 mil nacimientos.
+
+La formula para la prevalencia es: = (Total de nacidos vivos con DTN + Total de nacidos muertos con DTN) / (Total de nacidos vivos + Total de nacidos muertos) * 10000
+
+Los datos de tb.DTN incluyen tanto nacidos vivos como nacidos muertos. 
+
+Los datos de los nacimientos anuales se extrajeron del INEGI: 
+
+- <https://cuentame.inegi.org.mx/poblacion/natalidad/grafica_nacimientos.pdf>
+- <https://www.inegi.org.mx/programas/natalidad/>
+- <https://www.inegi.org.mx/programas/natalidad/#tabulados>
+- <https://www.inegi.org.mx/app/biblioteca/ficha.html?upc=702825075026>
+
+"Para la generación de la estadística de nacimientos se emplea la definición que propone la ONU de nacido vivo como: “Nacido vivo es la expulsión o extracción completa del cuerpo de la madre, prescindiendo de la duración del embarazo, de un producto de la concepción que, después de tal separación, respire o manifieste cualquier otro signo de vida, tal como el latido del corazón, pulsaciones del cordón umbilical o movimiento efectivo de músculos voluntarios, haya o no haya sido cortado el cordón umbilical y esté o no unida la placenta; cada producto de tal alumbramiento se considera como nacido vivo"
+
+"Nacimiento: Expulsión o extracción completa del cuerpo de la madre, independientemente de la duración del embarazo, de un producto de la concepción que después de la separación respire o manifieste cualquier otro signo de vida, como el latido del corazón, la pulsación del cordón umbilical o el movimiento efectivo de músculos voluntarios, haya sido o no cortado el cordón umbilical y esté o no unida la placenta; cada producto de tal alumbramiento es considerado nacido vivo14."
+
+El número de nacidos muertos, los registra INEGI como muertes fetales.
+
+Se extrajo de: <https://www.inegi.org.mx/sistemas/olap/Proyectos/bd/continuas/mortalidad/MortalidadFetal.asp>
+
+NOta IMPORTANTE: 
+
+Esta base de datos sí incluye información de abortos. De acuerdo con el "Diccionario de la base de datos nacional integrada" del INEGI, la información extraída de los certificados de muerte fetal incluye una variable específica llamada Tip_abor (Tipo de aborto). Esta variable documenta el evento y lo clasifica en tres categorías:   1: Espontáneo2: Provocado3: Terapéutico
+
+- Para que el INEGI contabilice el evento, debe existir un certificado de muerte fetal expedido por un médico o autoridad civil. Los abortos tempranos que ocurren en casa o fuera del sistema de salud formal no generan este certificado y, por lo tanto, no existen en el denominador del INEGI.
+
+- En el mismo diccionario del INEGI, la variable Eda_prod (Edad gestacional) establece un rango de captura que inicia a partir de las 12 semanas de gestación. Esto significa que una enorme cantidad de abortos tempranos (primer trimestre) no se capturan en esta base de datos.
+
+__________
+
+Entonces, el número total por año de nacidos muertos, lo podemos obtener de la base de datos de Óbito. La cual se extrajo con base en el el catálogo oficial de la CIE-10 para malformaciones y anomalías congénitas, abarcando las claves desde la Q000 hasta la Q999, tales datos están reportados en la base de datos del INEGI.
+
+## Calculamos prevalencia por tipo de defecto
+
+```{r Año y diagnóstico final, echo=T, results='hold'}
+DTN.por.año <- tb.DTN %>%
+  select(AÑO,DIAG_FINAL)
+DTN.por.año.2<-table(DTN.por.año)
+DTN.por.año.2<-as.data.frame(DTN.por.año.2)
+# Agrego el número de nacimientos totales a mi dataframe
+nacimientos <- rep(nacimientos.en.mexico.2005_2021$Nacimientos,5)
+DTN.por.año.2$"Nacimientos totales" <- nacimientos
+# Agrego el numéro total de muertes fetales en México de 2005 a 2021
+muertes.fetales.2005.a.2021<-muertes.fetales.en.mexico.1985_2021 %>%
+  select(AÑO)%>%
+  filter(AÑO>=2005 & AÑO <= 2021)
+muertes.fetales.2005.a.2021<-table(muertes.fetales.2005.a.2021)
+muertes.fetales.2005.a.2021<-as.data.frame(muertes.fetales.2005.a.2021)
+names(muertes.fetales.2005.a.2021)[2]<-"Muertes fetales"
+DTN.por.año.2$`Muertes fetales`<-muertes.fetales.2005.a.2021$`Muertes fetales`
+# Agrego la prevalencia
+DTN.por.año.2$Prevalencia<-(DTN.por.año.2$Freq)/(DTN.por.año.2$`Nacimientos totales`+DTN.por.año.2$`Muertes fetales`)
+# Ahora calculamos prevalencia por cada diez mil nacimientos
+DTN.por.año.2$"Prevalencia por cada diez mil nacimientos" <- DTN.por.año.2$Prevalencia*10000
+# Exporto la base de datos
+write.csv(DTN.por.año.2, "tb.DTN.prevalencia.2005-2021.csv")
+```
+
+## Graficamos prevalencia por cada 10 000 nacimientos
+
+```{r Gráfico de prevalencia DTN 2005 a 2021, echo=F, results='hold'}
+# Organizo el orden de los niveles de la variable DIAG_FINAL
+levels(DTN.por.año.2$DIAG_FINAL)
+DTN.por.año.2$DIAG_FINAL<-factor(DTN.por.año.2$DIAG_FINAL,
+       levels = levels(DTN.por.año.2$DIAG_FINAL)[c(1,4,2,3,5)])
+levels(DTN.por.año.2$DIAG_FINAL)
+ggplot(data = DTN.por.año.2,
+       aes(x=AÑO, 
+           y=`Prevalencia por cada diez mil nacimientos`, 
+           fill=DIAG_FINAL))+
+  geom_bar(position="stack", stat="identity")+
+  scale_fill_viridis_d("Defecto de \ntubo neural", alpha = 0.7) +
+  theme_linedraw() +
+  xlab("Año")+
+  ylab("Prevalencia por cada 10 000 nacimientos")+
+  ylim(0, 4.2)+
+  ggtitle("Prevalencia de DTN \npor cada 10 000 nacimientos, 2005-2021")+
+  theme(axis.text=element_text(size=7))
+# Exportamos gráfico
+ggsave("Prevalencia_DTN_2005_2021.png", 
+       plot = last_plot(),
+       device = png,
+       height = 8,
+       width = 18,
+       units = c("cm"),
+       dpi = 300)
+```
+
+## Graficamos prevalencia por cada 10 000 nacimientos (en inglés)
+
+```{r Gráfico de prevalencia DTN 2005 a 2021 en inglés, echo=F, results='hold'}
+# Organizo el orden de los niveles de la variable DIAG_FINAL
+levels(DTN.por.año.2$DIAG_FINAL)
+DTN.por.año.2$DIAG_FINAL<-factor(DTN.por.año.2$DIAG_FINAL,
+       levels = levels(DTN.por.año.2$DIAG_FINAL)[c(1,4,2,3,5)])
+levels(DTN.por.año.2$DIAG_FINAL)
+
+ggplot(data = DTN.por.año.2,
+       aes(x=AÑO, 
+           y=`Prevalencia por cada diez mil nacimientos`, 
+           fill=DIAG_FINAL))+
+  geom_bar(position="stack", stat="identity")+
+  scale_fill_viridis_d("Neural tube \ndefects", 
+                       alpha = 0.7,
+                       labels=c("Anencephaly",
+                                "Myelomeningocele",
+                                "Encephalocele",
+                                "Meningocele",
+                                "Unspecified NTD")) +
+  theme_linedraw() +
+  xlab("Year")+
+  ylab("Prevalence per 10,000 births")+
+  ylim(0, 4.02)+
+  # ggtitle("Annual prevalence of neural tube defects (NTD) in Mexico \nby diagnostic category, 2005–2021")+
+  theme(
+    plot.title   = element_text(family = "Times New Roman", face = "bold", size = 10),
+    legend.title = element_text(family = "Times New Roman", face = "bold",size = 10),
+    legend.text  = element_text(family = "Times New Roman", size = 10),
+    legend.spacing.y = unit(0, "pt"),
+    axis.title.x = element_text(family = "Times New Roman", size = 10),
+    axis.title.y = element_text(family = "Times New Roman", size = 10)
+  )
+# Exportamos gráfico
+ggsave("Prevalencia_DTN_2005_2021_ingles.jpeg", 
+       plot = last_plot(),
+       device = jpeg,
+       height = 12,
+       width = 20,
+       units = c("cm"),
+       dpi = 600)
+```
+
+## Tabulamos la prevalencia
+
+```{r Tabla de prevalencia, echo=F,results='hold'}
+tabla.DTN<-DTN.por.año.2%>%
+  select(AÑO, DIAG_FINAL, `Prevalencia por cada diez mil nacimientos`)
+tabla.DTN$`Prevalencia por cada diez mil nacimientos`<-round(tabla.DTN$`Prevalencia por cada diez mil nacimientos`, digits = 2)
+matrix(nrow = 5, ncol = 2, byrow = T,
+       dimnames = list(c(as.character(unique(tabla.DTN$DIAG_FINAL),
+                       c("A","B")              )))
+                       )
+                      
+
+matriz.DTN <- matrix(tabla.DTN$`Prevalencia por cada diez mil nacimientos` ,nrow = 5, ncol = 17, byrow = TRUE,
+               dimnames = list(unique(tabla.DTN$DIAG_FINAL),
+                               unique(tabla.DTN$AÑO)
+                               ))
+matriz.DTN
+library(kableExtra)
+matriz.DTN %>%
+  kbl()%>%
+  kable_styling()
+```
+
+
+## Calculamos prevalencia total
+
+```{r Prevalencia total}
+DTN.anual <- tb.DTN %>%
+  select(AÑO,DIAG_FINAL) # Seleccionamos variables de interés
+DTN.anual.01 <- as.data.frame(table(DTN.anual))
+DTN.anual.02<-DTN.anual.01 %>%
+  group_by(AÑO) %>%
+  summarise(total_Freq = sum(Freq, na.rm = TRUE)) # Sacamos total por año
+# Juntamos con nacimientos
+DTN.anual.03 <-cbind(DTN.anual.02, nacimientos.en.mexico.2005_2021)
+# Nos quedamos con variables de interés
+DTN.anual.04<-DTN.anual.03 %>% 
+  select(AÑO, total_Freq, Nacimientos)
+names(DTN.anual.04)[2]<-"DTN"
+
+# Añadimos muertes fetales
+DTN.anual.04$'Muertes fetales' <- muertes.fetales.2005.a.2021$`Muertes fetales`
+# Suma numérica de todas las columnas (excepto la de agrupación si la hubiera)
+totales <- colSums(DTN.anual.04[sapply(DTN.anual.04, is.numeric)], na.rm = TRUE)
+
+# Calculamos prevalencia total del 2005 al 2021
+prevalencia.total.2005.2021<-totales[1]/(totales[2]+totales[3])*10000
+prevalencia.total.2005.2021
+```
+
+## Gráfico de dispersión conectado con línes y por grupos
+
+```{r Gráfico de prevalencia DTN 2005 a 2021 con líneas en inglés, echo=F, results='hold'}
+# Organizo el orden de los niveles de la variable DIAG_FINAL
+levels(DTN.por.año.2$DIAG_FINAL)
+DTN.por.año.2$DIAG_FINAL<-factor(DTN.por.año.2$DIAG_FINAL,
+       levels = levels(DTN.por.año.2$DIAG_FINAL)[c(1,4,2,3,5)])
+levels(DTN.por.año.2$DIAG_FINAL)
+
+# Gráfico de dispersión conectado
+ggplot(data = DTN.por.año.2,
+       aes(x = AÑO, 
+           y = `Prevalencia por cada diez mil nacimientos`, 
+           color = DIAG_FINAL,
+           group = DIAG_FINAL))+
+  geom_line(size = 0.8) +
+  geom_point(size = 2) +
+  scale_color_viridis_d("Neural tube \ndefects", 
+                       alpha = 0.7,
+                       labels=c("Anencephaly",
+                                "Myelomeningocele",
+                                "Encephalocele",
+                                "Meningocele",
+                                "Unspecified NTD")) +
+  theme_linedraw() +
+  xlab("Year")+
+  ylab("Prevalence per 10,000 births")+
+  ylim(0, 2.5)+
+  # ggtitle("Annual prevalence of neural tube defects (NTD) in Mexico \nby diagnostic category, 2005–2021")+
+  theme(
+    plot.title   = element_text(family = "Times New Roman", face = "bold", size = 10),
+    legend.title = element_text(family = "Times New Roman", face = "bold",size = 10),
+    legend.text  = element_text(family = "Times New Roman", size = 10),
+    legend.spacing.y = unit(0, "pt"),
+    axis.title.x = element_text(family = "Times New Roman", size = 10),
+    axis.title.y = element_text(family = "Times New Roman", size = 10)
+  )
+# Exportamos gráfico
+ggsave("Prevalencia_DTN_2005_2021_conectado_ingles.jpeg", 
+       plot = last_plot(),
+       device = jpeg,
+       height = 12,
+       width = 20,
+       units = c("cm"),
+       dpi = 600)
+```
+
+
