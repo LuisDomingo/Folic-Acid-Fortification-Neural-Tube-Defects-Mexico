@@ -341,17 +341,23 @@ write_csv(prevalencia.por.periodo, "tb.razon.y.diferencia.de.prevalencia.por.per
 ```
 
 Ahora construyo y formateo una tabla de resultados
+
 ```{r Construcción y formateo de tabla de resultados, include=F, results='hide', echo=FALSE}
 # Redondeo a 2 dígitos
-prevalencia.por.periodo.redondeada<-round(prevalencia.por.periodo[,-1], digits = 2)
+prevalencia.por.periodo.redondeada <- round(prevalencia.por.periodo[,-1], digits = 2)
 
-prevalencia.tabla.resultados<-data.frame(
-  "DTN"=prevalencia.por.periodo$DTN,
-  "Pre fortificación"=paste(
+# 1. Calcular la Reducción Relativa (Porcentaje) y sus Intervalos Invertidos
+prevalencia.por.periodo.redondeada$Reduccion_Porcentaje <- (1 - prevalencia.por.periodo.redondeada$Razon) * 100
+prevalencia.por.periodo.redondeada$Reduccion_IC_inferior <- (1 - prevalencia.por.periodo.redondeada$IC_superior.2) * 100
+prevalencia.por.periodo.redondeada$Reduccion_IC_superior <- (1 - prevalencia.por.periodo.redondeada$IC_inferior.2) * 100
+
+# 2. Construcción de la tabla manteniendo ambas columnas
+prevalencia.tabla.resultados <- data.frame(
+  "DTN" = prevalencia.por.periodo$DTN,
+  "Pre fortificación" = paste(
     prevalencia.por.periodo.redondeada$media, "(",
     prevalencia.por.periodo.redondeada$IC_inferior, "a",
-    prevalencia.por.periodo.redondeada$IC_superior, ")"),
-  "Fortificación obligatoria" = prevalencia.por.periodo.redondeada$`Prevalencia por cada diez mil nacimientos`,
+    prevalencia.por.periodo.redondeada$IC_superior, ")"),   "Fortificación obligatoria" = prevalencia.por.periodo.redondeada$`Prevalencia por cada diez mil nacimientos`,
   "Post fortificación" = paste(
     prevalencia.por.periodo.redondeada$media.1, "(",
     prevalencia.por.periodo.redondeada$IC_inferior.1, "a",
@@ -360,70 +366,68 @@ prevalencia.tabla.resultados<-data.frame(
     prevalencia.por.periodo.redondeada$Razon, "(",
     prevalencia.por.periodo.redondeada$IC_inferior.2, "a",
     prevalencia.por.periodo.redondeada$IC_superior.2, ")"),
+  "Reducción relativa (%)" = paste(
+    round(prevalencia.por.periodo.redondeada$Reduccion_Porcentaje, 0), "(",
+    round(prevalencia.por.periodo.redondeada$Reduccion_IC_inferior, 0), "a",
+    round(prevalencia.por.periodo.redondeada$Reduccion_IC_superior, 0), ")"),
   "Diferencia: pre-post" =  paste(
     prevalencia.por.periodo.redondeada$Diferencia, "(",
     prevalencia.por.periodo.redondeada$IC_inferior.3, "a",
     prevalencia.por.periodo.redondeada$IC_superior.3, ")") 
-  )
-# Formateo los nombres de las variables
-names(prevalencia.tabla.resultados)<-c("DTN",
+)
+
+# Formateo los nombres de las variables (ahora son 7 columnas)
+names(prevalencia.tabla.resultados) <- c("DTN",
                                        "Pre fortificación",
                                        "Fortificación \nobligatoria",
                                        "Post  fortificación",
                                        "Razón de prevalencia",
+                                       "Reducción relativa (%)",
                                        "Disminución de prevalencia")
 
-prevalencia.tabla.resultados[6,1]<- "Todos los DTN"
-# Agrego los IC  total prefortificación
+prevalencia.tabla.resultados[6,1] <- "Todos los DTN"
 
-total.prevalencia<-sum(prevalencia.por.periodo.redondeada$media)
+# --- AGREGAR TOTALES ---
 
+# Total Pre fortificación
+total.prevalencia <- sum(prevalencia.por.periodo.redondeada$media)
 prevalencia.tabla.resultados[6,2] <- paste(total.prevalencia, "(",
-                                           round(quantil.total.pre[["2.5%"]], digits = 2),
-                                           "a",
-                                           round(quantil.total.pre[["97.5%"]], digits = 2),
-                                           ")")
-# Agrego el total de la Fortificación obligatoria, aquí no hay IC
+                                           round(quantil.total.pre[["2.5%"]], digits = 2), "a",
+                                           round(quantil.total.pre[["97.5%"]], digits = 2), ")")
+
+# Total Fortificación obligatoria
 prevalencia.tabla.resultados[6,3] <- sum(prevalencia.por.periodo.redondeada$`Prevalencia por cada diez mil nacimientos`)
 
-# Agrego los IC total Post fortificación
-
-total.prevalencia.post<-sum(prevalencia.por.periodo.redondeada$media.1)
-
+# Total Post fortificación
+total.prevalencia.post <- sum(prevalencia.por.periodo.redondeada$media.1)
 prevalencia.tabla.resultados[6,4] <- paste(total.prevalencia.post, "(",
-      round(quantil.total.post[["2.5%"]], digits = 2),
-      "a",
-      round(quantil.total.post[["97.5%"]], digits = 2),
-                                           ")")
-# Agrego los IC para razón de prevalencia
-# NOTA IMPORTANTE, AQUÍ ES LA RAZÓN DE PREVALENCIA PROMEDIO LO QUE SE REPPORTA, NO LA SUMA
+                                           round(quantil.total.post[["2.5%"]], digits = 2), "a",
+                                           round(quantil.total.post[["97.5%"]], digits = 2), ")")
 
-vector.razon.prevalencia <- vector.media.i.2/vector.media.i
+# Razón de prevalencia (promedio)
+vector.razon.prevalencia <- vector.media.i.2 / vector.media.i
 media.razon.prevalencia <- round(mean(vector.razon.prevalencia), digits = 2)
-
-quantile.media.razon.prevalencia  <- quantile(vector.razon.prevalencia, c(0.025,0.975))
-
+quantile.media.razon.prevalencia <- quantile(vector.razon.prevalencia, c(0.025,0.975))
 prevalencia.tabla.resultados[6,5] <- paste(media.razon.prevalencia, "(",
-      round(quantile.media.razon.prevalencia[["2.5%"]], digits = 2),
-      "a",
-      round(quantile.media.razon.prevalencia[["97.5%"]], digits = 2),
-                                           ")")
-# Agrego los IC para diferencia entre tazas de referencia
+                                           round(quantile.media.razon.prevalencia[["2.5%"]], digits = 2), "a",
+                                           round(quantile.media.razon.prevalencia[["97.5%"]], digits = 2), ")")
 
+# NUEVO: Total Reducción relativa (%)
+media.reduccion <- round((1 - media.razon.prevalencia) * 100, 0)
+ic_inf_reduccion <- round((1 - quantile.media.razon.prevalencia[["97.5%"]]) * 100, 0)
+ic_sup_reduccion <- round((1 - quantile.media.razon.prevalencia[["2.5%"]]) * 100, 0)
+prevalencia.tabla.resultados[6,6] <- paste(media.reduccion, "(", ic_inf_reduccion, "a", ic_sup_reduccion, ")")
+
+# Disminución de prevalencia
 vector.diferencia.tazas.referencia <- vector.media.i - vector.media.i.2
 media.diferencia.tazas.referencia <- round(mean(vector.diferencia.tazas.referencia), digits = 2)
-  
-
 quantile.media.diferencia.tazas.referencia <- quantile(vector.diferencia.tazas.referencia, c(0.025,0.975))
-
-prevalencia.tabla.resultados[6,6] <- paste(media.diferencia.tazas.referencia, "(",
-      round(quantile.media.diferencia.tazas.referencia [["2.5%"]], digits = 2),
-      "a",
-      round(quantile.media.diferencia.tazas.referencia[["97.5%"]], digits = 2),
-                                           ")")
+prevalencia.tabla.resultados[6,7] <- paste(media.diferencia.tazas.referencia, "(", 
+                                           round(quantile.media.diferencia.tazas.referencia [["2.5%"]], digits = 2), "a",
+                                           round(quantile.media.diferencia.tazas.referencia[["97.5%"]], digits = 2), ")")
 
 # Exporto la tabla de resultados
-write_csv(prevalencia.tabla.resultados, "tabla_de_resultados_prevalencia_IC_3.csv")
+write_csv(prevalencia.tabla.resultados, "tabla_de_resultados_prevalencia_IC_3_con_porcentaje.csv")
 ```
 
 ### Calculos los intervalos de confianza para el total
