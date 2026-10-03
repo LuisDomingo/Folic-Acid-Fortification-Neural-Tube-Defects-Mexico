@@ -1,0 +1,442 @@
+---
+title: Prevalencia por cada 10 000 nacimientos de acuerdo a cada tipo de defecto con cocientes de la tasa de prevalencia e IC
+author: "Domingo Martínez"
+date: "`r Sys.Date()`"
+output:
+  html_document:       # El output controla los parámetros de salida del renderizado
+    collapsed: true            # Contraer celdas de salida
+    code_folding: show          # Mostrar el código
+    toc: true                   # Mostrar la tabla de contenidos
+    toc_depth: 3                # Niveles de títulos que se mostrarán
+    toc_float: false             # Índices o contenidos flotantes
+    smooth_scroll: true         # Activar el scroll
+    highlight: kate             # Destacar
+    df_print: paged             # Mostrar los dataframes en páginas
+    number_sections: false       # Numeración de contenidos
+    theme: flatly               # Tema gráfico
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+En este script vamos a generar un análisis análogo a la table 3 del artículo de De wals et al. (2007) de la manera descrita a continuación.
+
+1. La tasa de referencia se define como:
+
+**Tasa de referencia** = (Total de nacidos vivos con DTN + Total de nacidos muertos con DTN) / (Total de nacidos vivos + Total de nacidos muertos)
+
+2. Nuestros períodos de estudio se dividen en tres partes:
+
+	- Pre-fortificación: 2004 a 2008
+	- Fortificación obligatoria: 2008
+	- Post-fortificación 2008 a 2021
+
+Después de calcular la tasa de referencia de la prevalencia para cada período y por tipo de defecto, estimaremos su Intervalo de Confianza (IC).
+
+3. Con la información anterior estimaremos el llamado *cociente de la tasa de prevalencia* (rate ratio)
+
+También le podemos llamar razón de prevalencia
+
+El cociente de la tasa de prevalencia se define como:
+
+*cociente de la tasa de prevalencia* = tasa de referencia del período Post-fortificación / tasa de referencia del períoodo Pre-fortificación
+ 
+4. Se calcula la diferencia entre tasas de referencia
+
+La diferencia entre tasas de referencia (difference in rate) del período Pre-fortificación y el período Post-fortificación, se calculan de la siguiente manera:
+
+**Diferencia en la tasa de referencia** = Tasa de referencia Pre-fortificación - Tasa de referencia Post-fortificación 
+
+### Lectura de la base de datos
+
+```{r Lectura de la base de datos, include=F, results='hide', echo=F}
+DTN.por.año.3 <-read_csv("tb.DTN.prevalencia.2005-2021.csv")
+# Formateo Diganóstico final como factor
+DTN.por.año.3$DIAG_FINAL<-as_factor(DTN.por.año.3$DIAG_FINAL)
+str(DTN.por.año.3)
+class(DTN.por.año.3)
+```
+
+### Tasas de prevalencia por período con intervalo de confianza
+
+```{r Tasa e intervalo para periodo de pre fortificación, include=F, results='hide', echo=FALSE}
+# Período pre-fortificación
+tb.pre.fortificacion<-DTN.por.año.3 %>%
+  filter(AÑO<2008) %>%
+  select(AÑO, DIAG_FINAL, `Prevalencia por cada diez mil nacimientos`)
+
+# Declaro un dataframe en el cual guardaré los resultados 
+IC.pre.fortificacion<-data.frame(
+           "DTN"=character(),
+           "media"=numeric(),
+           "IC_inferior" = numeric(),
+           "IC_superior" = numeric())
+
+# Obtengo un vector con los tipos de DTN
+tipo.DTN.1<-unique(tb.pre.fortificacion$DIAG_FINAL)
+
+# Aplico un ciclo for
+for (i in tipo.DTN.1) {
+  # Separo la dataset de interés
+  tb.i<-tb.pre.fortificacion %>%
+  filter(DIAG_FINAL == i) %>%
+  select(`Prevalencia por cada diez mil nacimientos`)
+  # Calculo la media
+  media.i<-mean(tb.i$`Prevalencia por cada diez mil nacimientos`)
+  # Estimos los intervalos de confianza
+  intervalos.i<-quantile(replicate(10000, mean(sample(tb.i$`Prevalencia por cada diez mil nacimientos`, replace = T))), c(0.025, 0.975))
+  # Los guardo en un nuevo data frame
+  IC.pre.fortificacion.i<-data.frame(
+           "DTN" = i,
+           "media"= media.i,
+           "IC_inferior" = intervalos.i[["2.5%"]],
+           "IC_superior" = intervalos.i[["97.5%"]])
+  # Integro este data frame con el anterior
+  IC.pre.fortificacion <-rbind(IC.pre.fortificacion, IC.pre.fortificacion.i ) 
+}
+```
+
+```{r Tasa para período de fortificación obligatoria, include=F, results='hide', echo=F}
+# Período de fortificación obligatoria
+tb.fortificacion.obligatoria<-DTN.por.año.3 %>%
+  filter(AÑO==2008) %>%
+  select(DIAG_FINAL, `Prevalencia por cada diez mil nacimientos`)
+# Dado que, solamente tengo una observación por año, no puedo sacar ni media ni intervalo de confianza
+# Solamente construímos el dataframe con la información que tenemos
+```
+
+
+```{r Tasa e intervalo para periodo de post fortificación, include=F, results='hide', echo=FALSE}
+# Período post-fortificación
+tb.post.fortificacion <- DTN.por.año.3 %>%
+  filter(AÑO>2008) %>%
+  select(AÑO, DIAG_FINAL, `Prevalencia por cada diez mil nacimientos`)
+
+# Declaro un dataframe en el cual guardaré los resultados 
+IC.post.fortificacion<-data.frame(
+           "DTN"=character(),
+           "media"=numeric(),
+           "IC_inferior" = numeric(),
+           "IC_superior" = numeric())
+
+# Obtengo un vector con los tipos de DTN
+tipo.DTN.2<-unique(tb.post.fortificacion$DIAG_FINAL)
+
+# Aplico un ciclo for
+for (i in tipo.DTN.2) {
+  # Separo la dataset de interés
+  tb.i.2<-tb.post.fortificacion %>%
+  filter(DIAG_FINAL == i) %>%
+  select(`Prevalencia por cada diez mil nacimientos`)
+  # Calculo la media
+  media.i.2<-mean(tb.i.2$`Prevalencia por cada diez mil nacimientos`)
+  # Estimos los intervalos de confianza
+  intervalos.i.2<-quantile(replicate(10000, mean(sample(tb.i.2$`Prevalencia por cada diez mil nacimientos`, replace = T))), c(0.025, 0.975))
+  # Los guardo en un nuevo data frame
+  IC.post.fortificacion.i<-data.frame(
+           "DTN" = i,
+           "media"= media.i.2,
+           "IC_inferior" = intervalos.i.2[["2.5%"]],
+           "IC_superior" = intervalos.i.2[["97.5%"]])
+  # Integro este data frame con el anterior
+  IC.post.fortificacion <-rbind(IC.post.fortificacion, IC.post.fortificacion.i ) 
+}
+```
+
+### Estimo el intervalo de confianza para el total de prevalencia en el periodo de prefortificación
+
+```{r IC total prevalencia prefortificacion, include=F, results='hide', echo=FALSE}
+# Período pre-fortificación
+tb.pre.fortificacion<-DTN.por.año.3 %>%
+  filter(AÑO<2008) %>%
+  select(AÑO, DIAG_FINAL, `Prevalencia por cada diez mil nacimientos`)
+
+# Declaro un dataframe en el cual guardaré los resultados 
+media.i.pre.fortificacion<-numeric()
+
+# Obtengo un vector con los tipos de DTN
+tipo.DTN.1<-unique(tb.pre.fortificacion$DIAG_FINAL)
+
+vector.media.i <- rep(NA, 10000)
+  
+for (j in 1:10000) {
+  # Declaro un dataframe en el cual guardaré los resultados 
+media.i.pre.fortificacion<-numeric()
+  # Aplico un ciclo for
+for (i in tipo.DTN.1) {
+  # Separo la dataset de interés
+  tb.i<-tb.pre.fortificacion %>%
+  filter(DIAG_FINAL == i) %>%
+  select(`Prevalencia por cada diez mil nacimientos`)
+  # Calculo la media i
+  media.i<-mean(sample(tb.i$`Prevalencia por cada diez mil nacimientos`, replace = T))
+ media.i.pre.fortificacion<-c(media.i.pre.fortificacion,media.i)
+ media.i.pre.fortificacion<-sum(media.i.pre.fortificacion)
+}
+vector.media.i[j]<-media.i.pre.fortificacion 
+rm(media.i.pre.fortificacion)
+}
+vector.media.i
+
+quantil.total.pre<-quantile(vector.media.i, c(0.025, 0.975))
+quantil.total.pre
+```
+
+### Estimo el intervalo de confianza para el total de prevalencia en el periodo de postfortificación
+
+```{r IC total prevalencia postfortificacion, include=F, results='hide', echo=FALSE}
+# Período pre-fortificación
+tb.post.fortificacion<-DTN.por.año.3 %>%
+  filter(AÑO>2008) %>%
+  select(AÑO, DIAG_FINAL, `Prevalencia por cada diez mil nacimientos`)
+
+# Declaro un dataframe en el cual guardaré los resultados 
+media.i.post.fortificacion<-numeric()
+
+# Obtengo un vector con los tipos de DTN
+tipo.DTN.1<-unique(tb.post.fortificacion$DIAG_FINAL)
+
+vector.media.i.2 <- rep(NA, 10000)
+  
+for (j in 1:10000) {
+  # Declaro un dataframe en el cual guardaré los resultados 
+media.i.post.fortificacion<-numeric()
+  # Aplico un ciclo for
+for (i in tipo.DTN.1) {
+  # Separo la dataset de interés
+  tb.i<-tb.post.fortificacion %>%
+  filter(DIAG_FINAL == i) %>%
+  select(`Prevalencia por cada diez mil nacimientos`)
+  # Calculo la media i
+  media.i<-mean(sample(tb.i$`Prevalencia por cada diez mil nacimientos`, replace = T))
+ media.i.post.fortificacion<-c(media.i.post.fortificacion,media.i)
+ media.i.post.fortificacion<-sum(media.i.post.fortificacion)
+}
+vector.media.i.2[j]<-media.i.post.fortificacion 
+rm(media.i.post.fortificacion)
+}
+vector.media.i.2
+
+quantil.total.post<-quantile(vector.media.i.2, c(0.025, 0.975))
+quantil.total.post
+```
+
+### Estimo la razón o coeficiente de la tasa de prevalencia
+
+*cociente de la tasa de prevalencia* = tasa de referencia del período Post-fortificación / tasa de referencia del período Pre-fortificación
+
+Programa: estimo la tasa de referencia del periodo post, luego estimo la tasa de referencia del periodo pre, las divido; repito esto 10 000 veces para estimar el intervalo de confianza.
+
+```{r Razón de prevalencia con intervalo de confianza, include=F, results='hide', echo=FALSE}
+# Obtengo el vector de factores
+tipos.de.DTN<-unique(DTN.por.año.3$DIAG_FINAL)
+
+# Declaro un dataframe en el cual guardaré los resultados 
+IC.razon.prevalencia <-data.frame(
+  "DTN"=character(),
+  "Razon"=numeric(),
+  "IC_inferior" = numeric(),
+  "IC_superior" = numeric())
+
+# Aplico un ciclo for
+for (i in tipos.de.DTN) {
+  # Separo los valores post-fortificación
+  tb.post.fortificacion <- DTN.por.año.3 %>%
+  filter(AÑO>2008 & DIAG_FINAL == i) %>%
+  select(AÑO, DIAG_FINAL, `Prevalencia por cada diez mil nacimientos`)
+
+  # Separo los valores pre-fortificación
+  tb.pre.fortificacion<-DTN.por.año.3 %>%
+  filter(AÑO<2008 & DIAG_FINAL == i) %>%
+  select(AÑO, DIAG_FINAL, `Prevalencia por cada diez mil nacimientos`)
+
+  # Calculo la razón de prevalencia 10 000 veces
+  razon.prevalencia.1<-quantile( replicate(10000,
+              mean(sample(tb.post.fortificacion$`Prevalencia por cada diez mil nacimientos`, replace = T)) / 
+              mean(sample(tb.pre.fortificacion$`Prevalencia por cada diez mil nacimientos`, replace = T))
+            )
+          , c(0.025, 0.975))
+  # Estimamos la razón 
+  razon.i<-mean(tb.post.fortificacion$`Prevalencia por cada diez mil nacimientos`) /
+    mean(tb.pre.fortificacion$`Prevalencia por cada diez mil nacimientos`)
+  
+  # Guardo los resultados en un dataframe
+  IC.razon.prevalencia.i <-data.frame(
+  "DTN"=i,
+  "Razon"=razon.i,
+  "IC_inferior" = razon.prevalencia.1[["2.5%"]],
+  "IC_superior" = razon.prevalencia.1[["97.5%"]])
+  
+  # Integro los data frames
+  IC.razon.prevalencia<-rbind(IC.razon.prevalencia, IC.razon.prevalencia.i)
+ }
+```
+
+### Estimo la diferencia entre el Pre y el Post con IC
+
+**Diferencia en la tasa de referencia** = Tasa de referencia Pre-fortificación - Tasa de referencia Post-fortificación 
+
+```{r Diferencia entre la prevalencia Pre y Post, include=F, results='hide', echo=FALSE}
+# Obtengo el vector de factores
+tipos.de.DTN<-unique(DTN.por.año.3$DIAG_FINAL)
+
+# Declaro un dataframe en el cual guardaré los resultados 
+IC.diferencia.prevalencia <-data.frame(
+  "DTN"=character(),
+  "Diferencia"=numeric(),
+  "IC_inferior" = numeric(),
+  "IC_superior" = numeric())
+
+# Aplico un ciclo for
+for (i in tipos.de.DTN) {
+  # Separo los valores post-fortificación
+  tb.post.fortificacion <- DTN.por.año.3 %>%
+  filter(AÑO>2008 & DIAG_FINAL == i) %>%
+  select(AÑO, DIAG_FINAL, `Prevalencia por cada diez mil nacimientos`)
+
+  # Separo los valores pre-fortificación
+  tb.pre.fortificacion<-DTN.por.año.3 %>%
+  filter(AÑO<2008 & DIAG_FINAL == i) %>%
+  select(AÑO, DIAG_FINAL, `Prevalencia por cada diez mil nacimientos`)
+
+  # Calculo la diferencia de prevalencia 10 000 veces
+  diferencia.prevalencia.1<-quantile( replicate(10000,
+              mean(sample(tb.pre.fortificacion$`Prevalencia por cada diez mil nacimientos`, replace = T)) -
+              mean(sample(tb.post.fortificacion$`Prevalencia por cada diez mil nacimientos`, replace = T))  
+            )
+          , c(0.025, 0.975))
+  # Estimamos la diferencia o disminución
+  diferencia.i <- mean(tb.pre.fortificacion$`Prevalencia por cada diez mil nacimientos`) -
+                  mean(tb.post.fortificacion$`Prevalencia por cada diez mil nacimientos`) 
+    
+  # Guardo los resultados en un dataframe
+  IC.diferencia.prevalencia.i <-data.frame(
+  "DTN"=i,
+  "Diferencia"=diferencia.i,
+  "IC_inferior" = diferencia.prevalencia.1[["2.5%"]],
+  "IC_superior" = diferencia.prevalencia.1[["97.5%"]])
+  
+  # Integro los data frames
+  IC.diferencia.prevalencia <-rbind(IC.diferencia.prevalencia,IC.diferencia.prevalencia.i)
+ }
+```
+
+
+### Integro las estimaciones de los tres periodos en un solo data frame
+
+Voy a integrar: IC.pre.fortificacion + tb.fortificacion.obligatoria + IC.post.fortificacion + IC.razon.prevalencia + IC.diferencia.prevalencia
+
+```{r Integro las estimaciones de los tres periodos, include=F, results='hide', echo=FALSE}
+prevalencia.por.periodo<-cbind(IC.pre.fortificacion, 
+                               tb.fortificacion.obligatoria, 
+                               IC.post.fortificacion,
+                               IC.razon.prevalencia,
+                               IC.diferencia.prevalencia)
+# Separo las variables de interés
+prevalencia.por.periodo<-prevalencia.por.periodo[,-c(5,7,11,15)]
+# Exporto la tabla
+write_csv(prevalencia.por.periodo, "tb.razon.y.diferencia.de.prevalencia.por.periodo.csv")
+```
+
+Ahora construyo y formateo una tabla de resultados
+```{r Construcción y formateo de tabla de resultados, include=F, results='hide', echo=FALSE}
+# Redondeo a 2 dígitos
+prevalencia.por.periodo.redondeada<-round(prevalencia.por.periodo[,-1], digits = 2)
+
+prevalencia.tabla.resultados<-data.frame(
+  "DTN"=prevalencia.por.periodo$DTN,
+  "Pre fortificación"=paste(
+    prevalencia.por.periodo.redondeada$media, "(",
+    prevalencia.por.periodo.redondeada$IC_inferior, "a",
+    prevalencia.por.periodo.redondeada$IC_superior, ")"),
+  "Fortificación obligatoria" = prevalencia.por.periodo.redondeada$`Prevalencia por cada diez mil nacimientos`,
+  "Post fortificación" = paste(
+    prevalencia.por.periodo.redondeada$media.1, "(",
+    prevalencia.por.periodo.redondeada$IC_inferior.1, "a",
+    prevalencia.por.periodo.redondeada$IC_superior.1, ")"),
+  "Razón de prevalencia" = paste(
+    prevalencia.por.periodo.redondeada$Razon, "(",
+    prevalencia.por.periodo.redondeada$IC_inferior.2, "a",
+    prevalencia.por.periodo.redondeada$IC_superior.2, ")"),
+  "Diferencia: pre-post" =  paste(
+    prevalencia.por.periodo.redondeada$Diferencia, "(",
+    prevalencia.por.periodo.redondeada$IC_inferior.3, "a",
+    prevalencia.por.periodo.redondeada$IC_superior.3, ")") 
+  )
+# Formateo los nombres de las variables
+names(prevalencia.tabla.resultados)<-c("DTN",
+                                       "Pre fortificación",
+                                       "Fortificación \nobligatoria",
+                                       "Post  fortificación",
+                                       "Razón de prevalencia",
+                                       "Disminución de prevalencia")
+
+prevalencia.tabla.resultados[6,1]<- "Todos los DTN"
+# Agrego los IC  total prefortificación
+
+total.prevalencia<-sum(prevalencia.por.periodo.redondeada$media)
+
+prevalencia.tabla.resultados[6,2] <- paste(total.prevalencia, "(",
+                                           round(quantil.total.pre[["2.5%"]], digits = 2),
+                                           "a",
+                                           round(quantil.total.pre[["97.5%"]], digits = 2),
+                                           ")")
+# Agrego el total de la Fortificación obligatoria, aquí no hay IC
+prevalencia.tabla.resultados[6,3] <- sum(prevalencia.por.periodo.redondeada$`Prevalencia por cada diez mil nacimientos`)
+
+# Agrego los IC total Post fortificación
+
+total.prevalencia.post<-sum(prevalencia.por.periodo.redondeada$media.1)
+
+prevalencia.tabla.resultados[6,4] <- paste(total.prevalencia.post, "(",
+      round(quantil.total.post[["2.5%"]], digits = 2),
+      "a",
+      round(quantil.total.post[["97.5%"]], digits = 2),
+                                           ")")
+# Agrego los IC para razón de prevalencia
+# NOTA IMPORTANTE, AQUÍ ES LA RAZÓN DE PREVALENCIA PROMEDIO LO QUE SE REPPORTA, NO LA SUMA
+
+vector.razon.prevalencia <- vector.media.i.2/vector.media.i
+media.razon.prevalencia <- round(mean(vector.razon.prevalencia), digits = 2)
+
+quantile.media.razon.prevalencia  <- quantile(vector.razon.prevalencia, c(0.025,0.975))
+
+prevalencia.tabla.resultados[6,5] <- paste(media.razon.prevalencia, "(",
+      round(quantile.media.razon.prevalencia[["2.5%"]], digits = 2),
+      "a",
+      round(quantile.media.razon.prevalencia[["97.5%"]], digits = 2),
+                                           ")")
+# Agrego los IC para diferencia entre tazas de referencia
+
+vector.diferencia.tazas.referencia <- vector.media.i - vector.media.i.2
+media.diferencia.tazas.referencia <- round(mean(vector.diferencia.tazas.referencia), digits = 2)
+  
+
+quantile.media.diferencia.tazas.referencia <- quantile(vector.diferencia.tazas.referencia, c(0.025,0.975))
+
+prevalencia.tabla.resultados[6,6] <- paste(media.diferencia.tazas.referencia, "(",
+      round(quantile.media.diferencia.tazas.referencia [["2.5%"]], digits = 2),
+      "a",
+      round(quantile.media.diferencia.tazas.referencia[["97.5%"]], digits = 2),
+                                           ")")
+
+# Exporto la tabla de resultados
+write_csv(prevalencia.tabla.resultados, "tabla_de_resultados_prevalencia_IC_3.csv")
+```
+
+### Calculos los intervalos de confianza para el total
+
+### Visualizamos la tabla de resultados
+
+```{r Tabla de resultados, echo=F, results='hold'}
+library(kableExtra)
+estimaciones.prevalencias<-prevalencia.tabla.resultados %>%
+  kbl()%>%
+  kable_styling(font_size = 11)%>%
+  kable_minimal()
+estimaciones.prevalencias
+```
+
+# NOTA: los totales podrían tener diferencia mínimas debido al redondeo.
