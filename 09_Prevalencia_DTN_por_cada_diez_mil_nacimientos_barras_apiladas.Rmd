@@ -148,6 +148,12 @@ ggplot(data = DTN.por.año.2,
   xlab("Year")+
   ylab("Prevalence per 10,000 births")+
   ylim(0, 4.02)+
+  # Agregar una línea vertical punteada en 2008
+  geom_vline(xintercept = 4, linetype = "dashed", color = "gray15", size = 0.5) +
+  # Agregar una etiqueta de texto indicando la fortificación
+  annotate("text", x = 5.3, y = 3.5, 
+           label = "Mandatory\n  Fortification", angle = 0, vjust = -0.5, 
+           family = "Times New Roman", size = 3.5, color = "gray30") +
   # ggtitle("Annual prevalence of neural tube defects (NTD) in Mexico \nby diagnostic category, 2005–2021")+
   theme(
     plot.title   = element_text(family = "Times New Roman", face = "bold", size = 10),
@@ -158,7 +164,7 @@ ggplot(data = DTN.por.año.2,
     axis.title.y = element_text(family = "Times New Roman", size = 10)
   )
 # Exportamos gráfico
-ggsave("Prevalencia_DTN_2005_2021_ingles.jpeg", 
+ggsave("Prevalencia_DTN_2005_2021_ingles_con_marca.jpeg", 
        plot = last_plot(),
        device = jpeg,
        height = 12,
@@ -241,6 +247,12 @@ ggplot(data = DTN.por.año.2,
                                 "Encephalocele",
                                 "Meningocele",
                                 "Unspecified NTD")) +
+  # Agregar una línea vertical punteada en 2008
+  geom_vline(xintercept = 4, linetype = "dashed", color = "gray15", size = 0.5) +
+  # Agregar una etiqueta de texto indicando la fortificación
+  annotate("text", x = 5.3, y = 2.19, 
+           label = "Mandatory\n  Fortification", angle = 0, vjust = -0.5, 
+           family = "Times New Roman", size = 3.5, color = "gray30") +
   theme_linedraw() +
   xlab("Year")+
   ylab("Prevalence per 10,000 births")+
@@ -255,7 +267,7 @@ ggplot(data = DTN.por.año.2,
     axis.title.y = element_text(family = "Times New Roman", size = 10)
   )
 # Exportamos gráfico
-ggsave("Prevalencia_DTN_2005_2021_conectado_ingles.jpeg", 
+ggsave("Prevalencia_DTN_2005_2021_conectado_ingles_con_marca.jpeg", 
        plot = last_plot(),
        device = jpeg,
        height = 12,
