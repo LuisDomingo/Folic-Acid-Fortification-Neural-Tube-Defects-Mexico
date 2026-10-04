@@ -1,0 +1,84 @@
+---
+title: "Prueba chi cuadrado"
+author: "Domingo Martínez"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+A continuación se aplicará la prueba de chi cuadrado para probar tendencia en las proporciones. Para eso, en una variables registraremos el número de casos totales con DTN y el número de casos sin DTN. La otra variable serán los años 2004 a 2007.
+
+## Lectura de la base de datos
+
+```{r Lectura de la base de datos, include=F, echo=FALSE}
+tb.casos.y.controles<-read_csv("tb.DTN.prevalencia.2005-2021.csv")
+```
+
+## Separación de variables de interés
+
+```{r Curado de la base de datos, include=FALSE, echo=FALSE}
+# Selecciono vaariables de interés
+tb.casos.y.controles.2<-tb.casos.y.controles %>%
+  filter(AÑO < 2008) %>%
+  select(AÑO, DIAG_FINAL, Freq, `Nacimientos totales`, `Muertes fetales`)
+
+# En un nueva columna llamada "controles", sumaré Nacimientos totales + Muertes fetales
+tb.casos.y.controles.2$controles<-tb.casos.y.controles.2$`Nacimientos totales` + tb.casos.y.controles.2$`Muertes fetales`
+
+# Separo en un data frame los años y cantidad de casos de controles
+tb.controles<-data_frame("AÑO"=unique(tb.casos.y.controles.2$AÑO),
+           "Controles"=unique(tb.casos.y.controles.2$controles))
+
+# Ahora cuento el número total de casos con DTN, correspondiente a la columna Freq
+## Declaro un dataframe para guardar los resulados
+tb.casos.DTN<-data_frame("AÑO"=numeric(),
+           "DTN"=numeric())
+## Obtengo vector para iterar
+años<-unique(tb.controles$AÑO)
+## Aplico ciclo
+for (i in años) {
+  total.i<-tb.casos.y.controles.2 %>%
+  filter(AÑO==i)%>%
+  select(Freq)%>%
+  sum()
+  df.i<-data_frame("AÑO"=i,
+           "DTN"=total.i)
+  tb.casos.DTN<-rbind(tb.casos.DTN, df.i)
+}
+
+# Juntamos tb.casos.DTN con tb.controles
+tb.casos.y.controles.3<-cbind(tb.casos.DTN, tb.controles)
+```
+
+## Chi cuadrado para tendencia
+
+Referencias:
+
+<https://www.cdc.gov/epiinfo/user-guide/statcalc/chisquarefortrend.html>
+
+<https://stat.ethz.ch/R-manual/R-devel/library/stats/html/prop.trend.test.html>
+
+<https://search.r-project.org/CRAN/refmans/rstatix/html/prop_trend_test.html>
+
+<https://www.sfu.ca/sasdoc/sashtml/stat/chap28/sect40.htm>
+
+```{r Aplicamos Chi cuadrado para probar tendencia}
+prop.trend.test(tb.casos.y.controles.3$DTN,
+                tb.casos.y.controles.3$Controles,
+                c(0,1,2))
+```
+
+**INTERPRETACIÓN:** A diferencia de lo reportado en el artículo de De Wals et al. (2007), en México ya existía una tendencia de casos de DTN a la baja en periodo de pre-fortificación. 
+
+En otras palabras, en canada los casos de DTN se mantenían estables antes de la fortificación (1993 a 1997), pero en México ya había una tendencia a la baja. Es posible que, solo se trate de variabilidad "normal", pero no tenemos datos antes de 2004 para comprobarlo. Los datos que tenemos dicen que sí había ya una tendencia a la baja en México antes de la fortifiación obligatoria.
+
+```{r Observamos dirección de la tendencia}
+library(dplyr)
+tb.casos.y.controles.3[,c(1,2,4)] %>%
+  mutate(Proporcion = DTN / (Controles+DTN))
+```
+
