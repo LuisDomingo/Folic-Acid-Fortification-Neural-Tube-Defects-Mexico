@@ -277,3 +277,178 @@ ggsave("Prevalencia_DTN_2005_2021_conectado_ingles_con_marca.jpeg",
 ```
 
 
+## Analisis ITS Bayesiano
+
+```{r}
+#| label: Modelo-Bayesiano-Jerarquico-Definitivo
+#| warning: false
+#| message: false
+#| results: hide
+#| cache: true
+
+library(dplyr)
+library(brms)
+
+# 1. Preparación de la base de datos: filtrado del año de transición (2009)
+datos_its_filtrados <- DTN.por.año.2 %>%
+  mutate(AÑO_num = as.numeric(as.character(AÑO))) %>%
+  filter(AÑO_num != 2009) %>% # Exclusión del washout period
+  mutate(
+    Poblacion_Riesgo = `Nacimientos totales` + `Muertes fetales`,
+    Casos = Freq,
+    
+    # Reloj continuo (2005=1, 2006=2, 2007=3, 2008=4, salta a 2010=6...)
+    Tiempo_Continuo = AÑO_num - 2004,
+    
+    # Efecto nivel / escalón inmediato (0 para 2005-2008, 1 para 2010-2021)
+    Fase_Total_Nivel = ifelse(AÑO_num >= 2010, 1, 0),
+    
+    # Cambio de pendiente / velocidad a largo plazo (0 pre-2008, inicia en 2010=1, 2011=2...)
+    Tiempo_Fase_Total = ifelse(AÑO_num >= 2010, AÑO_num - 2009, 0)
+  )
+
+# 2. Definición de la fórmula jerárquica multinivel
+# Modela los conteos mediante la familia Binomial Negativa e incluye el offset poblacional.
+# Permite que cada defecto (DIAG_FINAL) tenga su propia línea base y trayectoria.
+formula_jerarquica <- bf(
+  Casos ~ offset(log(Poblacion_Riesgo)) + 
+          Tiempo_Continuo + 
+          Fase_Total_Nivel + 
+          Tiempo_Fase_Total + 
+          (1 + Tiempo_Continuo + Fase_Total_Nivel + Tiempo_Fase_Total | DIAG_FINAL)
+)
+
+# 3. Definición de priors regularizadores para estabilidad numérica
+priors_its <- c(
+  prior(normal(0, 2), class = "b"), 
+  prior(normal(0, 5), class = "Intercept"),
+  prior(exponential(1), class = "sd") 
+)
+
+# 4. Ajuste del modelo Bayesiano con MCMC (10 cadenas, alta iteración)
+modelo_brms_jerarquico <- brm(
+  formula = formula_jerarquica,
+  data = datos_its_filtrados,
+  family = negbinomial(),  
+  prior = priors_its,
+  cores = 10,               
+  chains = 10, 
+  iter = 4000, 
+  warmup = 1000,
+  control = list(adapt_delta = 0.95), 
+  seed = 2026
+)
+```
+
+```{r}
+#| label: Resultados-Modelo-Jerarquico
+#| warning: false
+#| message: false
+
+library(dplyr)
+library(brms)
+
+# 1. Resumen general de convergencia y parámetros (Rhat y ESS)
+cat("\n========================================\n")
+cat(" 1. RESUMEN GENERAL DE CONVERGENCIA\n")
+cat("========================================\n")
+print(summary(modelo_brms_jerarquico))
+
+# 2. Extracción de Efectos Globales (Todos los DTN) transformados a Rate Ratios (RR)
+cat("\n========================================\n")
+cat(" 2. EFECTOS GLOBALES (Rate Ratios poblacionales)\n")
+cat("========================================\n")
+
+tabla_global_rr <- fixef(modelo_brms_jerarquico) %>% 
+  exp() %>% 
+  as.data.frame() %>%
+  select(RR_Estimate = Estimate, CI_Inferior = Q2.5, CI_Superior = Q97.5) %>%
+  round(3)
+
+print(tabla_global_rr)
+
+# 3. Extracción de Efectos Específicos por Diagnóstico (Cambio de Pendiente post-2010)
+cat("\n========================================\n")
+cat(" 3. CAMBIO DE VELOCIDAD / PENDIENTE POST-2010 (Tiempo_Fase_Total) POR DIAGNÓSTICO\n")
+cat("========================================\n")
+
+coeficientes_multinivel <- coef(modelo_brms_jerarquico)$DIAG_FINAL
+
+rr_tiempo_total_dtn <- exp(coeficientes_multinivel[, , "Tiempo_Fase_Total"]) %>%
+  as.data.frame() %>%
+  select(RR_Estimate = Estimate, CI_Inferior = Q2.5, CI_Superior = Q97.5) %>%
+  round(3)
+
+print(rr_tiempo_total_dtn)
+
+# 4. Extracción de Tendencia Base Previa (Tiempo_Continuo) por Diagnóstico
+cat("\n========================================\n")
+cat(" 4. TENDENCIA BASE PREVIA A 2008 (Tiempo_Continuo) POR DIAGNÓSTICO\n")
+cat("========================================\n")
+
+rr_tiempo_continuo_dtn <- exp(coeficientes_multinivel[, , "Tiempo_Continuo"]) %>%
+  as.data.frame() %>%
+  select(RR_Estimate = Estimate, CI_Inferior = Q2.5, CI_Superior = Q97.5) %>%
+  round(3)
+
+print(rr_tiempo_continuo_dtn)
+```
+
+### Interpretación
+
+Observamos la combinación de efectos globales:
+
+RR pre       = 0.988
+RR nivel     = 0.813
+RR pendiente = 1.050
+
+La historia que cuenta el modelo sería aproximadamente:
+
+Antes de 2010 no había una tendencia temporal claramente detectable. En 2010 se observa una reducción inmediata de la tasa estimada, aunque con considerable incertidumbre. Posteriormente, la trayectoria muestra una ligera recuperación relativa de la pendiente, pero sin evidencia concluyente de un cambio de pendiente.
+
+En otras palabras, Antes de 2010 no se observa una tendencia temporal claramente detectable ($RR = 0.988$, IC 95%: $0.833–1.183$). Si bien en 2010 se registra una disminución puntual estimada en la tasa ($RR = 0.813$), esta presenta una considerable incertidumbre que cruza la unidad ($IC\ 95\%: 0.491–1.341$). Posteriormente, la trayectoria posterior muestra una estabilización sin evidencia concluyente de un cambio estructural en la pendiente ($RR = 1.050$, IC 95%: $0.879–1.261$)
+
+La mayor limitante es que, solamente tenemos 4 años del periodo pre.
+
+Esto es precisamente una ventaja del modelo jerárquico: los diagnósticos con poca información pueden ser regularizados hacia la tendencia general.
+
+Pero también significa que no deberíamos interpretar los efectos diagnóstico-específicos como si cada diagnóstico hubiera tenido una ITS independiente con una gran cantidad de información. Entonces, mejor interpretar efectos globales.
+
+Para un artículo, yo no eliminaría el modelo por esta razón. Lo presentaría como una limitación y reforzaría la validación mediante posterior predictive checks + autocorrelación + sensibilidad del modelo.
+
+```{r}
+pp_check(modelo_brms_jerarquico, ndraws = 100)
+
+pp_check(
+  modelo_brms_jerarquico,
+  type = "dens_overlay",
+  ndraws = 100
+)
+
+pp_check(
+  modelo_brms_jerarquico,
+  type = "rootogram",
+  ndraws = 100
+)
+
+library(dplyr)
+
+datos_its_filtrados %>%
+  group_by(DIAG_FINAL) %>%
+  summarise(
+    n_total = n(),
+    n_pre = sum(AÑO_num < 2010),
+    n_post = sum(AÑO_num >= 2010),
+    años_pre = paste(min(AÑO_num[AÑO_num < 2010]),
+                     max(AÑO_num[AÑO_num < 2010]),
+                     sep = "–"),
+    años_post = paste(min(AÑO_num[AÑO_num >= 2010]),
+                      max(AÑO_num[AÑO_num >= 2010]),
+                      sep = "–"),
+    casos_total = sum(Casos),
+    casos_pre = sum(Casos[AÑO_num < 2010]),
+    casos_post = sum(Casos[AÑO_num >= 2010])
+  )
+
+```
+
