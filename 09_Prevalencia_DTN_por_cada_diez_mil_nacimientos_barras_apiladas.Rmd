@@ -280,7 +280,7 @@ ggsave("Prevalencia_DTN_2005_2021_conectado_ingles_con_marca.jpeg",
 ## Analisis ITS Bayesiano
 
 ```{r}
-#| label: Modelo-Bayesiano-Jerarquico-Definitivo
+#| label: Modelo-Bayesiano-Jerarquico
 #| warning: false
 #| message: false
 #| results: hide
@@ -416,6 +416,10 @@ Pero también significa que no deberíamos interpretar los efectos diagnóstico-
 
 Para un artículo, yo no eliminaría el modelo por esta razón. Lo presentaría como una limitación y reforzaría la validación mediante posterior predictive checks + autocorrelación + sensibilidad del modelo.
 
+**Interpretación clave para la Discusión**
+
+El resultado nulo no implica necesariamente que el ácido fólico no funcione. La explicación central es el subregistro del INEGI: los certificados de muerte fetal capturan pérdidas desde la semana 12, pero los DTN severos suelen perderse en el primer trimestre. Existe un sesgo de supervivencia embrionaria que enmascara el efecto real de la política.
+
 ```{r}
 pp_check(modelo_brms_jerarquico, ndraws = 100)
 
@@ -451,4 +455,201 @@ datos_its_filtrados %>%
   )
 
 ```
+
+## Análisis de sensibilidad 1
+
+## Modelo BUCP
+
+```{r}
+#| label: Modelo-BUCP-Suave-Corregido-2
+#| warning: false
+#| message: false
+#| cache: true
+
+library(brms)
+library(dplyr)
+library(tidybayes)
+library(posterior) 
+
+# 1. Asegurarnos de tener el logaritmo de la población precalculado en los datos
+datos_its_filtrados <- datos_its_filtrados %>%
+  mutate(log_Pob = log(Poblacion_Riesgo))
+
+# 2. Definición de la fórmula no lineal (incorporando log_Pob directamente)
+formula_bucp_suave <- bf(
+  Casos ~ offset(log_Pob) + 
+          b0 + 
+          b1 * (AÑO_num - omega) * (1 - transicion) + 
+          b2 * (AÑO_num - omega) * transicion,
+  
+  # Función para acotar el punto de cambio (omega) entre 2005 y 2021
+  nlf(omega ~ inv_logit(alpha) * 16 + 2005),
+  
+  # Función de salto suave
+  nlf(transicion ~ inv_logit((AÑO_num - omega) * exp(loggamma))),
+  
+  # Estructura jerárquica multinivel
+  b0 ~ 1 + (1 | DIAG_FINAL),
+  b1 ~ 1 + (1 | DIAG_FINAL),
+  b2 ~ 1 + (1 | DIAG_FINAL),
+  alpha ~ 1,
+  loggamma ~ 1,
+  
+  nl = TRUE
+)
+
+# 3. Priors regularizadores
+priors_bucp_suave <- c(
+  prior(normal(0, 2), nlpar = "b0"),
+  prior(normal(0, 2), nlpar = "b1"),
+  prior(normal(0, 2), nlpar = "b2"),
+  prior(normal(0, 1), nlpar = "alpha"),       
+  prior(normal(2, 1), nlpar = "loggamma"),  
+  prior(exponential(1), class = "sd", nlpar = "b0"),
+  prior(exponential(1), class = "sd", nlpar = "b1"),
+  prior(exponential(1), class = "sd", nlpar = "b2")
+)
+
+# 4. Ajuste del modelo BUCP Suave
+cat("Iniciando muestreo del modelo BUCP Suave corregido...\n")
+modelo_bucp_suave <- brm(
+  formula = formula_bucp_suave,
+  data = datos_its_filtrados,
+  family = negbinomial(),
+  prior = priors_bucp_suave,
+  cores = 8,
+  chains = 8,
+  iter = 5000,   
+  warmup = 2000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 12), 
+  seed = 2026
+)
+summary(modelo_bucp_suave)
+
+# 5. Extracción del Punto de Cambio (omega)
+cat("\n========================================\n")
+cat(" PUNTO DE CAMBIO ESTIMADO (Omega)\n")
+cat("========================================\n")
+
+draws_alpha <- as_draws_df(modelo_bucp_suave)$b_alpha_Intercept
+omega_estimado <- plogis(draws_alpha) * 16 + 2005
+
+cat("Media de omega (año estimado):", round(mean(omega_estimado), 2), "\n")
+cat("Mediana:", round(median(omega_estimado), 2), "\n")
+cat("Intervalo de Credibilidad 95%:", round(quantile(omega_estimado, 0.025), 2), 
+    "-", round(quantile(omega_estimado, 0.975), 2), "\n\n")
+```
+
+```{r}
+#| label: Modelo-BUCP-Suave-Corregido-2
+#| warning: false
+#| message: false
+#| cache: true
+
+library(brms)
+library(dplyr)
+library(tidybayes)
+library(posterior) 
+
+# 1. Asegurarnos de tener el logaritmo de la población precalculado en los datos
+datos_its_filtrados <- datos_its_filtrados %>%
+  mutate(log_Pob = log(Poblacion_Riesgo))
+
+# 2. Definición de la fórmula no lineal (incorporando log_Pob directamente)
+formula_bucp_suave <- bf(
+  Casos | rate(log_Pob) ~ 
+          b0 + 
+          b1 * (AÑO_num - omega) * (1 - transicion) + 
+          b2 * (AÑO_num - omega) * transicion,
+  
+  nlf(omega ~ inv_logit(alpha) * 16 + 2005),
+  nlf(transicion ~ inv_logit((AÑO_num - omega) * exp(loggamma))),
+  
+  b0 ~ 1 + (1 | DIAG_FINAL),
+  b1 ~ 1 + (1 | DIAG_FINAL),
+  b2 ~ 1 + (1 | DIAG_FINAL),
+  alpha ~ 1,
+  loggamma ~ 1,
+  nl = TRUE
+)
+
+# 3. Priors regularizadores
+priors_bucp_suave <- c(
+  prior(normal(0, 2), nlpar = "b0"),
+  prior(normal(0, 2), nlpar = "b1"),
+  prior(normal(0, 2), nlpar = "b2"),
+  prior(normal(0, 1), nlpar = "alpha"),       
+  prior(normal(2, 1), nlpar = "loggamma"),  
+  prior(exponential(1), class = "sd", nlpar = "b0"),
+  prior(exponential(1), class = "sd", nlpar = "b1"),
+  prior(exponential(1), class = "sd", nlpar = "b2")
+)
+
+# 4. Ajuste del modelo BUCP Suave
+cat("Iniciando muestreo del modelo BUCP Suave corregido...\n")
+modelo_bucp_suave <- brm(
+  formula = formula_bucp_suave,
+  data = datos_its_filtrados,
+  family = negbinomial(),
+  prior = priors_bucp_suave,
+  cores = 8,
+  chains = 8,
+  iter = 5000,   
+  warmup = 2000, 
+  control = list(adapt_delta = 0.99, max_treedepth = 12), 
+  seed = 2026
+)
+summary(modelo_bucp_suave)
+
+# 5. Extracción del Punto de Cambio (omega)
+cat("\n========================================\n")
+cat(" PUNTO DE CAMBIO ESTIMADO (Omega)\n")
+cat("========================================\n")
+
+draws_alpha <- as_draws_df(modelo_bucp_suave)$b_alpha_Intercept
+omega_estimado <- plogis(draws_alpha) * 16 + 2005
+
+cat("Media de omega (año estimado):", round(mean(omega_estimado), 2), "\n")
+cat("Mediana:", round(median(omega_estimado), 2), "\n")
+cat("Intervalo de Credibilidad 95%:", round(quantile(omega_estimado, 0.025), 2), 
+    "-", round(quantile(omega_estimado, 0.975), 2), "\n\n")
+```
+
+```{r}
+library(tidybayes)
+library(ggplot2)
+
+draws <- as_draws_df(modelo_bucp_suave)
+omega_vals <- plogis(draws$b_alpha_Intercept) * 16 + 2005
+
+ggplot(data.frame(omega = omega_vals), aes(x = omega)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 60, 
+                 fill = "steelblue", alpha = 0.7, color = "white") +
+  geom_density(color = "darkblue", linewidth = 1) +
+  geom_vline(xintercept = 2008, linetype = "dashed", color = "red", linewidth = 1) +
+  geom_vline(xintercept = 2010, linetype = "dashed", color = "orange", linewidth = 1) +
+  annotate("text", x = 2008, y = Inf, label = "Ley 2008", 
+           vjust = 2, hjust = 1.1, color = "red", size = 4) +
+  annotate("text", x = 2010, y = Inf, label = "Exposición plena 2010", 
+           vjust = 2, hjust = -0.1, color = "orange", size = 4) +
+  labs(title = "Distribución posterior del punto de cambio estructural (omega)",
+       subtitle = "Modelo BUCP suave con rate() — 24,000 draws",
+       x = "Año estimado del cambio estructural",
+       y = "Densidad posterior") +
+  theme_minimal(base_size = 12)
+```
+
+```{r}
+pp_check(modelo_bucp_suave, ndraws = 100)
+pp_check(modelo_bucp_suave, type = "rootogram", ndraws = 100)
+```
+
+**NOTA sobre narrativa análisis**
+
+Modelo principal: ITS jerárquico Binomial Negativo (punto fijo 2010) → sin efecto.
+
+Sensibilidad : BUCP suave jerárquico (punto libre) → omega ≈ 2019, sin efecto.
+
+
+
 
