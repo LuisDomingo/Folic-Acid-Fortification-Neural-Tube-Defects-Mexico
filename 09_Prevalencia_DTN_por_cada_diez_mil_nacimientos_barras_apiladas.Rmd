@@ -456,89 +456,9 @@ datos_its_filtrados %>%
 
 ```
 
-## Análisis de sensibilidad 1
+## Análisis de sensibilidad BUCP suave jerárquico
 
 ## Modelo BUCP
-
-```{r}
-#| label: Modelo-BUCP-Suave-Corregido-2
-#| warning: false
-#| message: false
-#| cache: true
-
-library(brms)
-library(dplyr)
-library(tidybayes)
-library(posterior) 
-
-# 1. Asegurarnos de tener el logaritmo de la población precalculado en los datos
-datos_its_filtrados <- datos_its_filtrados %>%
-  mutate(log_Pob = log(Poblacion_Riesgo))
-
-# 2. Definición de la fórmula no lineal (incorporando log_Pob directamente)
-formula_bucp_suave <- bf(
-  Casos ~ offset(log_Pob) + 
-          b0 + 
-          b1 * (AÑO_num - omega) * (1 - transicion) + 
-          b2 * (AÑO_num - omega) * transicion,
-  
-  # Función para acotar el punto de cambio (omega) entre 2005 y 2021
-  nlf(omega ~ inv_logit(alpha) * 16 + 2005),
-  
-  # Función de salto suave
-  nlf(transicion ~ inv_logit((AÑO_num - omega) * exp(loggamma))),
-  
-  # Estructura jerárquica multinivel
-  b0 ~ 1 + (1 | DIAG_FINAL),
-  b1 ~ 1 + (1 | DIAG_FINAL),
-  b2 ~ 1 + (1 | DIAG_FINAL),
-  alpha ~ 1,
-  loggamma ~ 1,
-  
-  nl = TRUE
-)
-
-# 3. Priors regularizadores
-priors_bucp_suave <- c(
-  prior(normal(0, 2), nlpar = "b0"),
-  prior(normal(0, 2), nlpar = "b1"),
-  prior(normal(0, 2), nlpar = "b2"),
-  prior(normal(0, 1), nlpar = "alpha"),       
-  prior(normal(2, 1), nlpar = "loggamma"),  
-  prior(exponential(1), class = "sd", nlpar = "b0"),
-  prior(exponential(1), class = "sd", nlpar = "b1"),
-  prior(exponential(1), class = "sd", nlpar = "b2")
-)
-
-# 4. Ajuste del modelo BUCP Suave
-cat("Iniciando muestreo del modelo BUCP Suave corregido...\n")
-modelo_bucp_suave <- brm(
-  formula = formula_bucp_suave,
-  data = datos_its_filtrados,
-  family = negbinomial(),
-  prior = priors_bucp_suave,
-  cores = 8,
-  chains = 8,
-  iter = 5000,   
-  warmup = 2000, 
-  control = list(adapt_delta = 0.99, max_treedepth = 12), 
-  seed = 2026
-)
-summary(modelo_bucp_suave)
-
-# 5. Extracción del Punto de Cambio (omega)
-cat("\n========================================\n")
-cat(" PUNTO DE CAMBIO ESTIMADO (Omega)\n")
-cat("========================================\n")
-
-draws_alpha <- as_draws_df(modelo_bucp_suave)$b_alpha_Intercept
-omega_estimado <- plogis(draws_alpha) * 16 + 2005
-
-cat("Media de omega (año estimado):", round(mean(omega_estimado), 2), "\n")
-cat("Mediana:", round(median(omega_estimado), 2), "\n")
-cat("Intervalo de Credibilidad 95%:", round(quantile(omega_estimado, 0.025), 2), 
-    "-", round(quantile(omega_estimado, 0.975), 2), "\n\n")
-```
 
 ```{r}
 #| label: Modelo-BUCP-Suave-Corregido-2
@@ -650,6 +570,677 @@ Modelo principal: ITS jerárquico Binomial Negativo (punto fijo 2010) → sin ef
 
 Sensibilidad : BUCP suave jerárquico (punto libre) → omega ≈ 2019, sin efecto.
 
+### Modelo univariado para anencefalia
+
+```{r}
+# | label: Analisis-Sensibilidad-Univariado-Anencefalia
+# | warning: false
+# | message: false
+# | results: hide
+# | cache: true
+
+# ============================================================================
+# ANÁLISIS DE SENSIBILIDAD: MODELO UNIVARIADO PARA ANENCEFALIA
+# ============================================================================
+# Objetivo: Evaluar si la regularización jerárquica ocultaba señales específicas
+# del diagnóstico más prevalente (Anencefalia).
+# Se ajustan dos modelos:
+#   1) BUCP suave univariado con omega LIBRE (estimado)
+#   2) BUCP suave univariado con omega FIJO en 2010
+# ============================================================================
+
+library(brms)
+library(dplyr)
+library(tidybayes)
+library(posterior)
+library(ggplot2)
+library(bayesplot)
+
+# ----------------------------------------------------------------------------
+# 1. PREPARACIÓN DE DATOS
+# ----------------------------------------------------------------------------
+datos_anencefalia <- datos_its_filtrados %>%
+  filter(DIAG_FINAL == "Anencefalia") %>%
+  mutate(log_Pob = log(Poblacion_Riesgo))
+
+cat("\n=== DATOS DE ANENCEFALIA ===\n")
+cat("Observaciones:", nrow(datos_anencefalia), "\n")
+cat("Años:", min(datos_anencefalia$AÑO_num), "-", max(datos_anencefalia$AÑO_num), "\n")
+cat("Casos totales:", sum(datos_anencefalia$Casos), "\n\n")
+
+# ----------------------------------------------------------------------------
+# 2. MODELO 1: BUCP SUAVE CON OMEGA LIBRE
+# ----------------------------------------------------------------------------
+formula_anencefalia_libre <- bf(
+  Casos | rate(log_Pob) ~ 
+          b0 + 
+          b1 * (AÑO_num - omega) * (1 - transicion) + 
+          b2 * (AÑO_num - omega) * transicion,
+  
+  nlf(omega ~ inv_logit(alpha) * 16 + 2005),
+  nlf(transicion ~ inv_logit((AÑO_num - omega) * exp(loggamma))),
+  
+  b0 ~ 1,
+  b1 ~ 1,
+  b2 ~ 1,
+  alpha ~ 1,
+  loggamma ~ 1,
+  nl = TRUE
+)
+
+priors_anencefalia_libre <- c(
+  prior(normal(0, 2), nlpar = "b0"),
+  prior(normal(0, 2), nlpar = "b1"),
+  prior(normal(0, 2), nlpar = "b2"),
+  prior(normal(0, 1), nlpar = "alpha"),
+  prior(normal(2, 1), nlpar = "loggamma")
+)
+
+cat("Ajustando modelo 1: BUCP univariado con omega LIBRE...\n")
+modelo_anencefalia_libre <- brm(
+  formula = formula_anencefalia_libre,
+  data = datos_anencefalia,
+  family = negbinomial(),
+  prior = priors_anencefalia_libre,
+  cores = 8,
+  chains = 8,
+  iter = 5000,
+  warmup = 2000,
+  control = list(adapt_delta = 0.99, max_treedepth = 12),
+  seed = 2026
+)
+
+# ----------------------------------------------------------------------------
+# 3. MODELO 2: BUCP SUAVE CON OMEGA FIJO EN 2010
+# ----------------------------------------------------------------------------
+formula_anencefalia_2010 <- bf(
+  Casos | rate(log_Pob) ~ 
+          b0 + 
+          b1 * (AÑO_num - 2010) * (1 - transicion) + 
+          b2 * (AÑO_num - 2010) * transicion,
+  
+  nlf(transicion ~ inv_logit((AÑO_num - 2010) * exp(loggamma))),
+  
+  b0 ~ 1,
+  b1 ~ 1,
+  b2 ~ 1,
+  loggamma ~ 1,
+  nl = TRUE
+)
+
+priors_anencefalia_2010 <- c(
+  prior(normal(0, 2), nlpar = "b0"),
+  prior(normal(0, 2), nlpar = "b1"),
+  prior(normal(0, 2), nlpar = "b2"),
+  prior(normal(2, 1), nlpar = "loggamma")
+)
+
+cat("Ajustando modelo 2: BUCP univariado con omega FIJO en 2010...\n")
+modelo_anencefalia_2010 <- brm(
+  formula = formula_anencefalia_2010,
+  data = datos_anencefalia,
+  family = negbinomial(),
+  prior = priors_anencefalia_2010,
+  cores = 8,
+  chains = 8,
+  iter = 5000,
+  warmup = 2000,
+  control = list(adapt_delta = 0.99, max_treedepth = 12),
+  seed = 2026
+)
+
+# ----------------------------------------------------------------------------
+# 4. RESUMEN DE CONVERGENCIA
+# ----------------------------------------------------------------------------
+cat("\n========================================\n")
+cat(" MODELO 1: OMEGA LIBRE — RESUMEN\n")
+cat("========================================\n")
+print(summary(modelo_anencefalia_libre))
+
+cat("\n========================================\n")
+cat(" MODELO 2: OMEGA = 2010 — RESUMEN\n")
+cat("========================================\n")
+print(summary(modelo_anencefalia_2010))
+
+# ----------------------------------------------------------------------------
+# 5. EXTRACCIÓN DE PENDIENTES Y CAMBIO DE PENDIENTE
+# ----------------------------------------------------------------------------
+draws_libre <- as_draws_df(modelo_anencefalia_libre)
+draws_2010  <- as_draws_df(modelo_anencefalia_2010)
+
+# Modelo 1: omega libre
+b1_libre <- draws_libre$b_b1_Intercept
+b2_libre <- draws_libre$b_b2_Intercept
+diff_libre <- b2_libre - b1_libre
+
+# Modelo 2: omega fijo en 2010
+b1_2010 <- draws_2010$b_b1_Intercept
+b2_2010 <- draws_2010$b_b2_Intercept
+diff_2010 <- b2_2010 - b1_2010
+
+cat("\n========================================\n")
+cat(" MODELO 1: OMEGA LIBRE — PENDIENTES\n")
+cat("========================================\n")
+cat("b1 (pre):  Media =", round(mean(b1_libre), 3),
+    "| IC 95% = [", round(quantile(b1_libre, 0.025), 3), ",",
+                     round(quantile(b1_libre, 0.975), 3), "]\n")
+cat("b2 (post): Media =", round(mean(b2_libre), 3),
+    "| IC 95% = [", round(quantile(b2_libre, 0.025), 3), ",",
+                     round(quantile(b2_libre, 0.975), 3), "]\n")
+cat("b2 - b1:   Media =", round(mean(diff_libre), 3),
+    "| IC 95% = [", round(quantile(diff_libre, 0.025), 3), ",",
+                     round(quantile(diff_libre, 0.975), 3), "]\n")
+cat("P(b2 < b1):", round(mean(diff_libre < 0), 3), "\n")
+
+cat("\n========================================\n")
+cat(" MODELO 2: OMEGA = 2010 — PENDIENTES\n")
+cat("========================================\n")
+cat("b1 (pre):  Media =", round(mean(b1_2010), 3),
+    "| IC 95% = [", round(quantile(b1_2010, 0.025), 3), ",",
+                     round(quantile(b1_2010, 0.975), 3), "]\n")
+cat("b2 (post): Media =", round(mean(b2_2010), 3),
+    "| IC 95% = [", round(quantile(b2_2010, 0.025), 3), ",",
+                     round(quantile(b2_2010, 0.975), 3), "]\n")
+cat("b2 - b1:   Media =", round(mean(diff_2010), 3),
+    "| IC 95% = [", round(quantile(diff_2010, 0.025), 3), ",",
+                     round(quantile(diff_2010, 0.975), 3), "]\n")
+cat("P(b2 < b1):", round(mean(diff_2010 < 0), 3), "\n")
+cat("P(b2 > b1):", round(mean(diff_2010 > 0), 3), "\n")
+
+# ----------------------------------------------------------------------------
+# 6. POSTERIOR DEL PUNTO DE CAMBIO (MODELO 1)
+# ----------------------------------------------------------------------------
+omega_vals <- plogis(draws_libre$b_alpha_Intercept) * 16 + 2005
+
+cat("\n========================================\n")
+cat(" PUNTO DE CAMBIO (omega) — OMEGA LIBRE\n")
+cat("========================================\n")
+cat("Media:", round(mean(omega_vals), 2), "\n")
+cat("Mediana:", round(median(omega_vals), 2), "\n")
+cat("IC 95%:", round(quantile(omega_vals, 0.025), 2), "-",
+    round(quantile(omega_vals, 0.975), 2), "\n\n")
+
+# ----------------------------------------------------------------------------
+# 7. GRÁFICOS
+# ----------------------------------------------------------------------------
+
+# --- Gráfico 1: Posterior de omega (modelo libre) ---
+p_omega <- ggplot(data.frame(omega = omega_vals), aes(x = omega)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 60,
+                 fill = "steelblue", alpha = 0.7, color = "white") +
+  geom_density(color = "darkblue", linewidth = 1) +
+  geom_vline(xintercept = 2008, linetype = "dashed", color = "red", linewidth = 1) +
+  geom_vline(xintercept = 2010, linetype = "dashed", color = "orange", linewidth = 1) +
+  annotate("text", x = 2008, y = Inf, label = "Ley 2008",
+           vjust = 2, hjust = 1.1, color = "red", size = 4) +
+  annotate("text", x = 2010, y = Inf, label = "Exposición plena 2010",
+           vjust = 2, hjust = -0.1, color = "orange", size = 4) +
+  labs(title = "Posterior del punto de cambio (omega) — Anencefalia",
+       subtitle = "Modelo BUCP suave univariado con omega libre",
+       x = "Año estimado del cambio estructural",
+       y = "Densidad posterior") +
+  theme_minimal(base_size = 12)
+
+print(p_omega)
+
+# --- Gráfico 2: Ajuste del modelo con omega fijo en 2010 ---
+datos_plot <- datos_anencefalia %>%
+  mutate(Tasa = Casos / Poblacion_Riesgo * 10000)
+
+pred_2010 <- datos_anencefalia %>%
+  add_epred_draws(modelo_anencefalia_2010, ndraws = 500) %>%
+  mutate(Tasa_pred = .epred / Poblacion_Riesgo * 10000)
+
+p_ajuste <- ggplot() +
+  stat_summary(data = pred_2010,
+               aes(x = AÑO_num, y = Tasa_pred, group = 1),
+               fun.data = function(x) data.frame(
+                 y = mean(x),
+                 ymin = quantile(x, 0.025),
+                 ymax = quantile(x, 0.975)
+               ),
+               geom = "ribbon", fill = "steelblue", alpha = 0.3) +
+  stat_summary(data = pred_2010,
+               aes(x = AÑO_num, y = Tasa_pred, group = 1),
+               fun = mean, geom = "line", color = "darkblue", linewidth = 1) +
+  geom_point(data = datos_plot,
+             aes(x = AÑO_num, y = Tasa), color = "black", size = 2.5) +
+  geom_vline(xintercept = 2010, linetype = "dashed",
+             color = "red", linewidth = 1) +
+  annotate("text", x = 2010.3, y = max(datos_plot$Tasa),
+           label = "Fortificación\nplena (2010)",
+           hjust = 0, vjust = 1, color = "red", size = 3.5) +
+  labs(title = "Anencefalia: ajuste del modelo BUCP con omega fijo en 2010",
+       subtitle = "Curva ajustada con IC 95% (sombra) y datos observados (puntos)",
+       x = "Año",
+       y = "Prevalencia por 10,000 nacimientos") +
+  theme_minimal(base_size = 12)
+
+print(p_ajuste)
+
+# --- Gráfico 3: Comparación del cambio de pendiente (ambos modelos) ---
+df_diff <- data.frame(
+  valor = c(diff_libre, diff_2010),
+  modelo = factor(rep(c("Omega libre", "Omega = 2010"), 
+                      each = length(diff_libre)))
+)
+
+p_diff <- ggplot(df_diff, aes(x = valor, fill = modelo)) +
+  geom_density(alpha = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", linewidth = 1) +
+  scale_fill_manual(values = c("Omega libre" = "steelblue", 
+                                "Omega = 2010" = "coral")) +
+  labs(title = "Posterior del cambio de pendiente (b2 - b1) — Anencefalia",
+       subtitle = "Comparación entre modelo con omega libre y omega fijo en 2010",
+       x = "b2 - b1 (cambio en pendiente)",
+       y = "Densidad posterior",
+       fill = "Modelo") +
+  theme_minimal(base_size = 12)
+
+print(p_diff)
+
+# ----------------------------------------------------------------------------
+# 8. DIAGNÓSTICOS DE CONVERGENCIA Y AJUSTE
+# ----------------------------------------------------------------------------
+
+# --- Trace plots del modelo libre ---
+mcmc_trace(modelo_anencefalia_libre,
+           pars = c("b_b0_Intercept", "b_b1_Intercept",
+                    "b_b2_Intercept", "b_alpha_Intercept",
+                    "b_loggamma_Intercept"))
+
+# --- Trace plots del modelo con omega fijo ---
+mcmc_trace(modelo_anencefalia_2010,
+           pars = c("b_b0_Intercept", "b_b1_Intercept",
+                    "b_b2_Intercept", "b_loggamma_Intercept"))
+
+# --- Posterior predictive checks ---
+pp_check(modelo_anencefalia_libre, ndraws = 100)
+pp_check(modelo_anencefalia_libre, type = "rootogram", ndraws = 100)
+pp_check(modelo_anencefalia_2010, ndraws = 100)
+pp_check(modelo_anencefalia_2010, type = "rootogram", ndraws = 100)
+
+# ----------------------------------------------------------------------------
+# 9. TABLA RESUMEN COMPARATIVA
+# ----------------------------------------------------------------------------
+library(knitr)
+library(kableExtra)
+
+tabla_resumen <- data.frame(
+  Modelo = c("Univariado omega libre", "Univariado omega = 2010"),
+  b1_pre = c(
+    paste0(round(mean(b1_libre), 3), " [", round(quantile(b1_libre, 0.025), 3),
+           ", ", round(quantile(b1_libre, 0.975), 3), "]"),
+    paste0(round(mean(b1_2010), 3), " [", round(quantile(b1_2010, 0.025), 3),
+           ", ", round(quantile(b1_2010, 0.975), 3), "]")
+  ),
+  b2_post = c(
+    paste0(round(mean(b2_libre), 3), " [", round(quantile(b2_libre, 0.025), 3),
+           ", ", round(quantile(b2_libre, 0.975), 3), "]"),
+    paste0(round(mean(b2_2010), 3), " [", round(quantile(b2_2010, 0.025), 3),
+           ", ", round(quantile(b2_2010, 0.975), 3), "]")
+  ),
+  cambio = c(
+    paste0(round(mean(diff_libre), 3), " [", round(quantile(diff_libre, 0.025), 3),
+           ", ", round(quantile(diff_libre, 0.975), 3), "]"),
+    paste0(round(mean(diff_2010), 3), " [", round(quantile(diff_2010, 0.025), 3),
+           ", ", round(quantile(diff_2010, 0.975), 3), "]")
+  ),
+  P_b2_menor_b1 = c(
+    round(mean(diff_libre < 0), 3),
+    round(mean(diff_2010 < 0), 3)
+  ),
+  omega = c(
+    paste0(round(mean(omega_vals), 2), " [", round(quantile(omega_vals, 0.025), 2),
+           ", ", round(quantile(omega_vals, 0.975), 2), "]"),
+    "2010 (fijo)"
+  )
+)
+
+tabla_resumen %>%
+  kbl(caption = "Análisis univariado de Anencefalia: comparación de modelos") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+
+cat("\n========================================\n")
+cat(" ANÁLISIS UNIVARIADO DE ANENCEFALIA COMPLETADO\n")
+cat("========================================\n")
+```
 
 
+### Modelo univariado para Mielomeningocele
+
+```{r}
+# | label: Analisis-Sensibilidad-Univariado-Mielomeningocele
+# | warning: false
+# | message: false
+# | results: hide
+# | cache: true
+
+# ============================================================================
+# ANÁLISIS DE SENSIBILIDAD: MODELO UNIVARIADO PARA MIELOMENINGOCELE
+# ============================================================================
+# Objetivo: Evaluar si la regularización jerárquica ocultaba señales específicas
+# del segundo diagnóstico más prevalente (Mielomeningocele).
+# Se ajustan dos modelos:
+#   1) BUCP suave univariado con omega LIBRE (estimado)
+#   2) BUCP suave univariado con omega FIJO en 2010
+# ============================================================================
+
+library(brms)
+library(dplyr)
+library(tidybayes)
+library(posterior)
+library(ggplot2)
+library(bayesplot)
+
+# ----------------------------------------------------------------------------
+# 1. PREPARACIÓN DE DATOS
+# ----------------------------------------------------------------------------
+datos_mielomeningocele <- datos_its_filtrados %>%
+  filter(DIAG_FINAL == "Mielomeningocele") %>%
+  mutate(log_Pob = log(Poblacion_Riesgo))
+
+cat("\n=== DATOS DE MIELOMENINGOCELE ===\n")
+cat("Observaciones:", nrow(datos_mielomeningocele), "\n")
+cat("Años:", min(datos_mielomeningocele$AÑO_num), "-", 
+    max(datos_mielomeningocele$AÑO_num), "\n")
+cat("Casos totales:", sum(datos_mielomeningocele$Casos), "\n\n")
+
+# ----------------------------------------------------------------------------
+# 2. MODELO 1: BUCP SUAVE CON OMEGA LIBRE
+# ----------------------------------------------------------------------------
+formula_mielomeningocele_libre <- bf(
+  Casos | rate(log_Pob) ~ 
+          b0 + 
+          b1 * (AÑO_num - omega) * (1 - transicion) + 
+          b2 * (AÑO_num - omega) * transicion,
+  
+  nlf(omega ~ inv_logit(alpha) * 16 + 2005),
+  nlf(transicion ~ inv_logit((AÑO_num - omega) * exp(loggamma))),
+  
+  b0 ~ 1,
+  b1 ~ 1,
+  b2 ~ 1,
+  alpha ~ 1,
+  loggamma ~ 1,
+  nl = TRUE
+)
+
+priors_mielomeningocele_libre <- c(
+  prior(normal(0, 2), nlpar = "b0"),
+  prior(normal(0, 2), nlpar = "b1"),
+  prior(normal(0, 2), nlpar = "b2"),
+  prior(normal(0, 1), nlpar = "alpha"),
+  prior(normal(2, 1), nlpar = "loggamma")
+)
+
+cat("Ajustando modelo 1: BUCP univariado con omega LIBRE...\n")
+modelo_mielomeningocele_libre <- brm(
+  formula = formula_mielomeningocele_libre,
+  data = datos_mielomeningocele,
+  family = negbinomial(),
+  prior = priors_mielomeningocele_libre,
+  cores = 8,
+  chains = 8,
+  iter = 5000,
+  warmup = 2000,
+  control = list(adapt_delta = 0.99, max_treedepth = 12),
+  seed = 2026
+)
+
+# ----------------------------------------------------------------------------
+# 3. MODELO 2: BUCP SUAVE CON OMEGA FIJO EN 2010
+# ----------------------------------------------------------------------------
+formula_mielomeningocele_2010 <- bf(
+  Casos | rate(log_Pob) ~ 
+          b0 + 
+          b1 * (AÑO_num - 2010) * (1 - transicion) + 
+          b2 * (AÑO_num - 2010) * transicion,
+  
+  nlf(transicion ~ inv_logit((AÑO_num - 2010) * exp(loggamma))),
+  
+  b0 ~ 1,
+  b1 ~ 1,
+  b2 ~ 1,
+  loggamma ~ 1,
+  nl = TRUE
+)
+
+priors_mielomeningocele_2010 <- c(
+  prior(normal(0, 2), nlpar = "b0"),
+  prior(normal(0, 2), nlpar = "b1"),
+  prior(normal(0, 2), nlpar = "b2"),
+  prior(normal(2, 1), nlpar = "loggamma")
+)
+
+cat("Ajustando modelo 2: BUCP univariado con omega FIJO en 2010...\n")
+modelo_mielomeningocele_2010 <- brm(
+  formula = formula_mielomeningocele_2010,
+  data = datos_mielomeningocele,
+  family = negbinomial(),
+  prior = priors_mielomeningocele_2010,
+  cores = 8,
+  chains = 8,
+  iter = 5000,
+  warmup = 2000,
+  control = list(adapt_delta = 0.99, max_treedepth = 12),
+  seed = 2026
+)
+
+# ----------------------------------------------------------------------------
+# 4. RESUMEN DE CONVERGENCIA
+# ----------------------------------------------------------------------------
+cat("\n========================================\n")
+cat(" MODELO 1: OMEGA LIBRE — RESUMEN\n")
+cat("========================================\n")
+print(summary(modelo_mielomeningocele_libre))
+
+cat("\n========================================\n")
+cat(" MODELO 2: OMEGA = 2010 — RESUMEN\n")
+cat("========================================\n")
+print(summary(modelo_mielomeningocele_2010))
+
+# ----------------------------------------------------------------------------
+# 5. EXTRACCIÓN DE PENDIENTES Y CAMBIO DE PENDIENTE
+# ----------------------------------------------------------------------------
+draws_libre <- as_draws_df(modelo_mielomeningocele_libre)
+draws_2010  <- as_draws_df(modelo_mielomeningocele_2010)
+
+# Modelo 1: omega libre
+b1_libre <- draws_libre$b_b1_Intercept
+b2_libre <- draws_libre$b_b2_Intercept
+diff_libre <- b2_libre - b1_libre
+
+# Modelo 2: omega fijo en 2010
+b1_2010 <- draws_2010$b_b1_Intercept
+b2_2010 <- draws_2010$b_b2_Intercept
+diff_2010 <- b2_2010 - b1_2010
+
+cat("\n========================================\n")
+cat(" MODELO 1: OMEGA LIBRE — PENDIENTES\n")
+cat("========================================\n")
+cat("b1 (pre):  Media =", round(mean(b1_libre), 3),
+    "| IC 95% = [", round(quantile(b1_libre, 0.025), 3), ",",
+                     round(quantile(b1_libre, 0.975), 3), "]\n")
+cat("b2 (post): Media =", round(mean(b2_libre), 3),
+    "| IC 95% = [", round(quantile(b2_libre, 0.025), 3), ",",
+                     round(quantile(b2_libre, 0.975), 3), "]\n")
+cat("b2 - b1:   Media =", round(mean(diff_libre), 3),
+    "| IC 95% = [", round(quantile(diff_libre, 0.025), 3), ",",
+                     round(quantile(diff_libre, 0.975), 3), "]\n")
+cat("P(b2 < b1):", round(mean(diff_libre < 0), 3), "\n")
+
+cat("\n========================================\n")
+cat(" MODELO 2: OMEGA = 2010 — PENDIENTES\n")
+cat("========================================\n")
+cat("b1 (pre):  Media =", round(mean(b1_2010), 3),
+    "| IC 95% = [", round(quantile(b1_2010, 0.025), 3), ",",
+                     round(quantile(b1_2010, 0.975), 3), "]\n")
+cat("b2 (post): Media =", round(mean(b2_2010), 3),
+    "| IC 95% = [", round(quantile(b2_2010, 0.025), 3), ",",
+                     round(quantile(b2_2010, 0.975), 3), "]\n")
+cat("b2 - b1:   Media =", round(mean(diff_2010), 3),
+    "| IC 95% = [", round(quantile(diff_2010, 0.025), 3), ",",
+                     round(quantile(diff_2010, 0.975), 3), "]\n")
+cat("P(b2 < b1):", round(mean(diff_2010 < 0), 3), "\n")
+cat("P(b2 > b1):", round(mean(diff_2010 > 0), 3), "\n")
+
+# ----------------------------------------------------------------------------
+# 6. POSTERIOR DEL PUNTO DE CAMBIO (MODELO 1)
+# ----------------------------------------------------------------------------
+omega_vals <- plogis(draws_libre$b_alpha_Intercept) * 16 + 2005
+
+cat("\n========================================\n")
+cat(" PUNTO DE CAMBIO (omega) — OMEGA LIBRE\n")
+cat("========================================\n")
+cat("Media:", round(mean(omega_vals), 2), "\n")
+cat("Mediana:", round(median(omega_vals), 2), "\n")
+cat("IC 95%:", round(quantile(omega_vals, 0.025), 2), "-",
+    round(quantile(omega_vals, 0.975), 2), "\n\n")
+
+# ----------------------------------------------------------------------------
+# 7. GRÁFICOS
+# ----------------------------------------------------------------------------
+
+# --- Gráfico 1: Posterior de omega (modelo libre) ---
+p_omega <- ggplot(data.frame(omega = omega_vals), aes(x = omega)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 60,
+                 fill = "steelblue", alpha = 0.7, color = "white") +
+  geom_density(color = "darkblue", linewidth = 1) +
+  geom_vline(xintercept = 2008, linetype = "dashed", color = "red", linewidth = 1) +
+  geom_vline(xintercept = 2010, linetype = "dashed", color = "orange", linewidth = 1) +
+  annotate("text", x = 2008, y = Inf, label = "Ley 2008",
+           vjust = 2, hjust = 1.1, color = "red", size = 4) +
+  annotate("text", x = 2010, y = Inf, label = "Exposición plena 2010",
+           vjust = 2, hjust = -0.1, color = "orange", size = 4) +
+  labs(title = "Posterior del punto de cambio (omega) — Mielomeningocele",
+       subtitle = "Modelo BUCP suave univariado con omega libre",
+       x = "Año estimado del cambio estructural",
+       y = "Densidad posterior") +
+  theme_minimal(base_size = 12)
+
+print(p_omega)
+
+# --- Gráfico 2: Ajuste del modelo con omega fijo en 2010 ---
+datos_plot <- datos_mielomeningocele %>%
+  mutate(Tasa = Casos / Poblacion_Riesgo * 10000)
+
+pred_2010 <- datos_mielomeningocele %>%
+  add_epred_draws(modelo_mielomeningocele_2010, ndraws = 500) %>%
+  mutate(Tasa_pred = .epred / Poblacion_Riesgo * 10000)
+
+p_ajuste <- ggplot() +
+  stat_summary(data = pred_2010,
+               aes(x = AÑO_num, y = Tasa_pred, group = 1),
+               fun.data = function(x) data.frame(
+                 y = mean(x),
+                 ymin = quantile(x, 0.025),
+                 ymax = quantile(x, 0.975)
+               ),
+               geom = "ribbon", fill = "steelblue", alpha = 0.3) +
+  stat_summary(data = pred_2010,
+               aes(x = AÑO_num, y = Tasa_pred, group = 1),
+               fun = mean, geom = "line", color = "darkblue", linewidth = 1) +
+  geom_point(data = datos_plot,
+             aes(x = AÑO_num, y = Tasa), color = "black", size = 2.5) +
+  geom_vline(xintercept = 2010, linetype = "dashed",
+             color = "red", linewidth = 1) +
+  annotate("text", x = 2010.3, y = max(datos_plot$Tasa),
+           label = "Fortificación\nplena (2010)",
+           hjust = 0, vjust = 1, color = "red", size = 3.5) +
+  labs(title = "Mielomeningocele: ajuste del modelo BUCP con omega fijo en 2010",
+       subtitle = "Curva ajustada con IC 95% (sombra) y datos observados (puntos)",
+       x = "Año",
+       y = "Prevalencia por 10,000 nacimientos") +
+  theme_minimal(base_size = 12)
+
+print(p_ajuste)
+
+# --- Gráfico 3: Comparación del cambio de pendiente (ambos modelos) ---
+df_diff <- data.frame(
+  valor = c(diff_libre, diff_2010),
+  modelo = factor(rep(c("Omega libre", "Omega = 2010"), 
+                      each = length(diff_libre)))
+)
+
+p_diff <- ggplot(df_diff, aes(x = valor, fill = modelo)) +
+  geom_density(alpha = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", linewidth = 1) +
+  scale_fill_manual(values = c("Omega libre" = "steelblue", 
+                                "Omega = 2010" = "coral")) +
+  labs(title = "Posterior del cambio de pendiente (b2 - b1) — Mielomeningocele",
+       subtitle = "Comparación entre modelo con omega libre y omega fijo en 2010",
+       x = "b2 - b1 (cambio en pendiente)",
+       y = "Densidad posterior",
+       fill = "Modelo") +
+  theme_minimal(base_size = 12)
+
+print(p_diff)
+
+# ----------------------------------------------------------------------------
+# 8. DIAGNÓSTICOS DE CONVERGENCIA Y AJUSTE
+# ----------------------------------------------------------------------------
+
+# --- Trace plots del modelo libre ---
+mcmc_trace(modelo_mielomeningocele_libre,
+           pars = c("b_b0_Intercept", "b_b1_Intercept",
+                    "b_b2_Intercept", "b_alpha_Intercept",
+                    "b_loggamma_Intercept"))
+
+# --- Trace plots del modelo con omega fijo ---
+mcmc_trace(modelo_mielomeningocele_2010,
+           pars = c("b_b0_Intercept", "b_b1_Intercept",
+                    "b_b2_Intercept", "b_loggamma_Intercept"))
+
+# --- Posterior predictive checks ---
+pp_check(modelo_mielomeningocele_libre, ndraws = 100)
+pp_check(modelo_mielomeningocele_libre, type = "rootogram", ndraws = 100)
+pp_check(modelo_mielomeningocele_2010, ndraws = 100)
+pp_check(modelo_mielomeningocele_2010, type = "rootogram", ndraws = 100)
+
+# ----------------------------------------------------------------------------
+# 9. TABLA RESUMEN COMPARATIVA
+# ----------------------------------------------------------------------------
+library(knitr)
+library(kableExtra)
+
+tabla_resumen <- data.frame(
+  Modelo = c("Univariado omega libre", "Univariado omega = 2010"),
+  b1_pre = c(
+    paste0(round(mean(b1_libre), 3), " [", round(quantile(b1_libre, 0.025), 3),
+           ", ", round(quantile(b1_libre, 0.975), 3), "]"),
+    paste0(round(mean(b1_2010), 3), " [", round(quantile(b1_2010, 0.025), 3),
+           ", ", round(quantile(b1_2010, 0.975), 3), "]")
+  ),
+  b2_post = c(
+    paste0(round(mean(b2_libre), 3), " [", round(quantile(b2_libre, 0.025), 3),
+           ", ", round(quantile(b2_libre, 0.975), 3), "]"),
+    paste0(round(mean(b2_2010), 3), " [", round(quantile(b2_2010, 0.025), 3),
+           ", ", round(quantile(b2_2010, 0.975), 3), "]")
+  ),
+  cambio = c(
+    paste0(round(mean(diff_libre), 3), " [", round(quantile(diff_libre, 0.025), 3),
+           ", ", round(quantile(diff_libre, 0.975), 3), "]"),
+    paste0(round(mean(diff_2010), 3), " [", round(quantile(diff_2010, 0.025), 3),
+           ", ", round(quantile(diff_2010, 0.975), 3), "]")
+  ),
+  P_b2_menor_b1 = c(
+    round(mean(diff_libre < 0), 3),
+    round(mean(diff_2010 < 0), 3)
+  ),
+  omega = c(
+    paste0(round(mean(omega_vals), 2), " [", round(quantile(omega_vals, 0.025), 2),
+           ", ", round(quantile(omega_vals, 0.975), 2), "]"),
+    "2010 (fijo)"
+  )
+)
+
+tabla_resumen %>%
+  kbl(caption = "Análisis univariado de Mielomeningocele: comparación de modelos") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+
+cat("\n========================================\n")
+cat(" ANÁLISIS UNIVARIADO DE MIELOMENINGOCELE COMPLETADO\n")
+cat("========================================\n")
+```
 
