@@ -108,11 +108,16 @@ tb.DTN.mapeo.regiones2$ESTADOM2<-plyr::revalue(tb.DTN.mapeo.regiones2$ESTADOM2,
 
 Tasa de referencia = (Total de nacidos vivos con DTN + Total de nacidos muertos con DTN) / (Total de nacidos vivos + Total de nacidos muertos)
 
-Nuestros períodos de estudio se dividen en tres partes: - Pre-fortificación: 2004 a 2008 - Fortificación obligatoria: 2008 - Post-fortificación 2008 a 2021
+Nuestros períodos de estudio se dividen en tres partes: 
+
+- Pre-fortificación: 2005 a 2007
+- Fortificación obligatoria / parcial: 2008 a 2009
+- Post-fortificación: 2010 a 2021
+
 
 ### Tasa de referencia prefortificación norte
 
-```{r Tasa de referencia norte 2004-2008, include=FALSE, echo=FALSE}
+```{r Tasa de referencia norte 2005-2007, include=FALSE, echo=FALSE}
 library(tidyverse)
 # Filtro los años de interés
 tb.DTN.mapeo.regiones2.prefortificacion<-tb.DTN.mapeo.regiones2 %>%
@@ -158,7 +163,7 @@ tasa.de.referencia.prefortificacion.norte.por.diez.mil
 
 En este caso, la variabilidad proviene de los años del período, entonces, calcularemos la tasa para cada región para cada año, y con esos valores haremos remuestreo para estimar el intervalo de confianza.
 
-```{r Intervalo de confianza prefortificacion norte 2004:2008, echo=FALSE, include=FALSE}
+```{r Intervalo de confianza prefortificacion norte 2005:2007, echo=FALSE, include=FALSE}
 # Contamos casos DTN por año para región norte
 tb.pre.fortificacion.norte.años<-as.data.frame(table(tb.pre.fortificacion.norte$AÑO))
 names(tb.pre.fortificacion.norte.años)<-c("Año","nacimientos.DTN")
@@ -190,10 +195,10 @@ IC.pre.fortificacion.norte$prevalencia <- IC.pre.fortificacion.norte$nacimientos
 IC.pre.fortificacion.norte$prevalencia_por_diez_mil <-IC.pre.fortificacion.norte$prevalencia*10000
 
 # Hacemos  remuestreos
-distribucion.pre.fortificacion.norte <- numeric(5000)
+distribucion.pre.fortificacion.norte <- numeric(10000)
 n_años_pre_norte <- nrow(IC.pre.fortificacion.norte)
 
-for (i in 1:5000) {
+for (i in 1:10000) {
   # 1. Remuestreamos índices
   indices <- sample(1:n_años_pre_norte, n_años_pre_norte, replace = TRUE)
   
@@ -214,11 +219,11 @@ quantile.dist.pre.norte
 
 ### Tasa de referencia postfortificación norte
 
-```{r Tasa de referencia norte 2008-2021, include=FALSE, echo=FALSE}
+```{r Tasa de referencia norte 2010-2021, include=FALSE, echo=FALSE}
 library(tidyverse)
 # Filtro los años de interés
 tb.DTN.mapeo.regiones2.postfortificacion<-tb.DTN.mapeo.regiones2 %>%
-  filter(AÑO > 2008)
+  filter(AÑO >= 2010)
 # Selecciono los estados de la región norte
 tb.post.fortificacion.norte<-tb.DTN.mapeo.regiones2.postfortificacion%>%
   filter(ESTADOM2 %in% c("Baja California", 
@@ -236,7 +241,7 @@ post.fortificacion.norte <- length(tb.post.fortificacion.norte$AÑO)
 # Ahora estimo total de nacimos (vivos + muertos) en el mismo período para la región norte
 # Filtro años de interés y estados del norte
 nacimientos.postfortificacion.norte<-tb.total.nacimientos.INEGI %>%
-  select(Total,"2009":"2021")%>%
+  select(Total,"2010":"2021")%>%
   filter(Total %in% c("Baja California", 
                          "Baja California Sur", 
                          "Coahuila de Zaragoza", 
@@ -260,13 +265,13 @@ tasa.de.referencia.postfortificacion.norte.por.diez.mil
 
 En este caso, la variabilidad proviene de los años del período, entonces, calcularemos la tasa para cada región para cada año, y con esos valores haremos remuestreo para estimar el intervalo de confianza.
 
-```{r Intervalo de confianza postfortificacion norte 2008:2021, echo=FALSE, include=FALSE}
+```{r Intervalo de confianza postfortificacion norte 2010:2021, echo=FALSE, include=FALSE}
 # Contamos casos DTN por año para región norte
 tb.post.fortificacion.norte.años<-as.data.frame(table(tb.post.fortificacion.norte$AÑO))
 names(tb.post.fortificacion.norte.años)<-c("Año","nacimientos.DTN")
 # Contamos nacimientos totales por año para región norte
 nacimientos.postfortificacion.norte.años<-tb.total.nacimientos.INEGI %>%
-  select(Total,"2009":"2021")%>%
+  select(Total,"2010":"2021")%>%
   filter(Total %in% c("Baja California", 
                          "Baja California Sur", 
                          "Coahuila de Zaragoza", 
@@ -292,11 +297,11 @@ IC.post.fortificacion.norte$prevalencia <- IC.post.fortificacion.norte$nacimient
 IC.post.fortificacion.norte$prevalencia_por_diez_mil <-IC.post.fortificacion.norte$prevalencia*10000
 
 # Hacemos  remuestreos
-distribucion.post.fortificacion.norte <- numeric(5000)
+distribucion.post.fortificacion.norte <- numeric(10000)
 n_años_post_norte <- nrow(IC.post.fortificacion.norte)
 
-for (i in 1:5000) {
-  # 1. Remuestreamos los índices (esto tomará 13 muestras con reemplazo)
+for (i in 1:10000) {
+  # 1. Remuestreamos los índices (esto tomará 12 muestras con reemplazo)
   indices <- sample(1:n_años_post_norte, n_años_post_norte, replace = TRUE)
   
   # 2. Sumamos casos y nacimientos totales de esa muestra específica
@@ -315,7 +320,7 @@ quantile.dist.post.norte
 
 ### Tasa de referencia prefortificación centro
 
-```{r Tasa de referencia centro 2004-2008, include=FALSE, echo=FALSE}
+```{r Tasa de referencia centro 2005-2007, include=FALSE, echo=FALSE}
 library(tidyverse)
 # Filtro los años de interés
 tb.DTN.mapeo.regiones2.prefortificacion<-tb.DTN.mapeo.regiones2 %>%
@@ -359,7 +364,7 @@ tasa.de.referencia.prefortificacion.centro.por.diez.mil
 
 ### Intervalo de confianza prefortificación centro
 
-```{r Intervalo de confianza prefortificacion centro 2004:2008, echo=FALSE, include=FALSE}
+```{r Intervalo de confianza prefortificacion centro 2005:2007, echo=FALSE, include=FALSE}
 # Contamos casos DTN por año para región centro
 tb.pre.fortificacion.centro.años<-as.data.frame(table(tb.pre.fortificacion.centro$AÑO))
 names(tb.pre.fortificacion.centro.años)<-c("Año","nacimientos.DTN")
@@ -391,10 +396,10 @@ IC.pre.fortificacion.centro$prevalencia <- IC.pre.fortificacion.centro$nacimient
 IC.pre.fortificacion.centro$prevalencia_por_diez_mil <-IC.pre.fortificacion.centro$prevalencia*10000
 
 # Hacemos  remuestreos
-distribucion.pre.fortificacion.centro <- numeric(5000)
+distribucion.pre.fortificacion.centro <- numeric(10000)
 n_años_pre_centro <- nrow(IC.pre.fortificacion.centro)
 
-for (i in 1:5000) {
+for (i in 1:10000) {
   # 1. Remuestreamos los índices 
   indices <- sample(1:n_años_pre_centro, n_años_pre_centro, replace = TRUE)
   
@@ -414,11 +419,11 @@ quantile.dist.pre.centro
 
 ### Tasa de referencia postfortificación centro
 
-```{r Tasa de referencia centro 2008-2021, include=FALSE, echo=FALSE}
+```{r Tasa de referencia centro 2010-2021, include=FALSE, echo=FALSE}
 library(tidyverse)
 # Filtro los años de interés
 tb.DTN.mapeo.regiones2.postfortificacion<-tb.DTN.mapeo.regiones2 %>%
-  filter(AÑO > 2008)
+  filter(AÑO >= 2010)
 # Selecciono los estados de la región norte
 tb.post.fortificacion.centro<-tb.DTN.mapeo.regiones2.postfortificacion%>%
   filter(ESTADOM2 %in% c("Aguascalientes",
@@ -436,7 +441,7 @@ post.fortificacion.centro <- length(tb.post.fortificacion.centro$AÑO)
 # Ahora estimo total de nacimientos (vivos + muertos) en el mismo período para la región centro
 # Filtro años de interés y estados del centro
 nacimientos.postfortificacion.centro<-tb.total.nacimientos.INEGI %>%
-  select(Total,"2009":"2021")%>%
+  select(Total,"2010":"2021")%>%
   filter(Total %in% c("Aguascalientes",
                          "Colima",
                          "Guanajuato",
@@ -458,13 +463,13 @@ tasa.de.referencia.postfortificacion.centro.por.diez.mil
 
 ### Intervalo de confianza postfortificación centro
 
-```{r Intervalo de confianza postfortificacion centro 2008:2021, echo=FALSE, include=FALSE}
+```{r Intervalo de confianza postfortificacion centro 2010:2021, echo=FALSE, include=FALSE}
 # Contamos casos DTN por año para región centro
 tb.post.fortificacion.centro.años<-as.data.frame(table(tb.post.fortificacion.centro$AÑO))
 names(tb.post.fortificacion.centro.años)<-c("Año","nacimientos.DTN")
 # Contamos nacimientos totales por año para región centro
 nacimientos.postfortificacion.centro.años<-tb.total.nacimientos.INEGI %>%
-  select(Total,"2009":"2021")%>%
+  select(Total,"2010":"2021")%>%
   filter(Total %in% c("Aguascalientes",
                          "Colima",
                          "Guanajuato",
@@ -491,13 +496,13 @@ IC.post.fortificacion.centro$prevalencia <- IC.post.fortificacion.centro$nacimie
 IC.post.fortificacion.centro$prevalencia_por_diez_mil <-IC.post.fortificacion.centro$prevalencia*10000
 
 # Hacemos  remuestreos
-distribucion.post.fortificacion.centro <- numeric(5000)
+distribucion.post.fortificacion.centro <- numeric(10000)
 
-# El dataframe IC.post.fortificacion.centro tiene 13 filas (13 años)
+# El dataframe IC.post.fortificacion.centro tiene 12 filas (12 años)
 n_años_post <- nrow(IC.post.fortificacion.centro)
 
-for (i in 1:5000) {
-  # 1. Remuestreamos los índices de los años (n = 13)
+for (i in 1:10000) {
+  # 1. Remuestreamos los índices de los años (n = 12)
   indices <- sample(1:n_años_post, n_años_post, replace = TRUE)
   
   # 2. Sumamos los casos y los nacimientos totales de esa muestra específica
@@ -516,7 +521,7 @@ quantile.dist.post.centro
 
 ### Tasa de referencia prefortificación sur
 
-```{r Tasa de referencia sur 2004-2008, include=FALSE, echo=FALSE}
+```{r Tasa de referencia sur 2005-2007, include=FALSE, echo=FALSE}
 library(tidyverse)
 # Filtro los años de interés
 tb.DTN.mapeo.regiones2.prefortificacion<-tb.DTN.mapeo.regiones2 %>%
@@ -560,7 +565,7 @@ tasa.de.referencia.prefortificacion.sur.por.diez.mil
 
 ### Intervalo de confianza prefortificación sur
 
-```{r Intervalo de confianza prefortificacion sur 2004:2008, echo=FALSE, include=FALSE}
+```{r Intervalo de confianza prefortificacion sur 2005:2007, echo=FALSE, include=FALSE}
 # Contamos casos DTN por año para región sur
 tb.pre.fortificacion.sur.años<-as.data.frame(table(tb.pre.fortificacion.sur$AÑO))
 names(tb.pre.fortificacion.sur.años)<-c("Año","nacimientos.DTN")
@@ -592,10 +597,10 @@ IC.pre.fortificacion.sur$prevalencia <- IC.pre.fortificacion.sur$nacimientos.DTN
 IC.pre.fortificacion.sur$prevalencia_por_diez_mil <-IC.pre.fortificacion.sur$prevalencia*10000
 
 # Hacemos  remuestreos
-distribucion.pre.fortificacion.sur <- numeric(5000)
+distribucion.pre.fortificacion.sur <- numeric(10000)
 n_años_pre_sur <- nrow(IC.pre.fortificacion.sur)
 
-for (i in 1:5000) {
+for (i in 1:10000) {
   # 1. Remuestreamos los índices 
   indices <- sample(1:n_años_pre_sur, n_años_pre_sur, replace = TRUE)
   
@@ -615,11 +620,11 @@ quantile.dist.pre.sur
 
 ### Tasa de referencia postfortificación sur
 
-```{r Tasa de referencia sur 2008-2021, include=FALSE, echo=FALSE}
+```{r Tasa de referencia sur 2010-2021, include=FALSE, echo=FALSE}
 library(tidyverse)
 # Filtro los años de interés
 tb.DTN.mapeo.regiones2.postfortificacion<-tb.DTN.mapeo.regiones2 %>%
-  filter(AÑO > 2008)
+  filter(AÑO >= 2010)
 # Selecciono los estados de la región sur
 tb.post.fortificacion.sur<-tb.DTN.mapeo.regiones2.postfortificacion%>%
   filter(ESTADOM2 %in% c("Campeche",
@@ -637,7 +642,7 @@ post.fortificacion.sur <- length(tb.post.fortificacion.sur$AÑO)
 # Ahora estimo total de nacimientos (vivos + muertos) en el mismo período para la región sur
 # Filtro años de interés y estados del sur
 nacimientos.postfortificacion.sur<-tb.total.nacimientos.INEGI %>%
-  select(Total,"2009":"2021")%>%
+  select(Total,"2010":"2021")%>%
   filter(Total %in% c("Campeche",
                          "Chiapas",
                          "Guerrero", 
@@ -659,13 +664,13 @@ tasa.de.referencia.postfortificacion.sur.por.diez.mil
 
 ### Intervalo de confianza postfortificación sur
 
-```{r Intervalo de confianza postfortificacion sur 2008:2021, echo=FALSE, include=FALSE}
+```{r Intervalo de confianza postfortificacion sur 2010:2021, echo=FALSE, include=FALSE}
 # Contamos casos DTN por año para región sur
 tb.post.fortificacion.sur.años<-as.data.frame(table(tb.post.fortificacion.sur$AÑO))
 names(tb.post.fortificacion.sur.años)<-c("Año","nacimientos.DTN")
 # Contamos nacimientos totales por año para región sur
 nacimientos.postfortificacion.sur.años<-tb.total.nacimientos.INEGI %>%
-  select(Total,"2009":"2021")%>%
+  select(Total,"2010":"2021")%>%
   filter(Total %in% c("Campeche",
                          "Chiapas",
                          "Guerrero", 
@@ -692,11 +697,11 @@ IC.post.fortificacion.sur$prevalencia <- IC.post.fortificacion.sur$nacimientos.D
 IC.post.fortificacion.sur$prevalencia_por_diez_mil <-IC.post.fortificacion.sur$prevalencia*10000
 
 # Hacemos  remuestreos
-distribucion.post.fortificacion.sur <- numeric(5000)
+distribucion.post.fortificacion.sur <- numeric(10000)
 n_años_post_sur <- nrow(IC.post.fortificacion.sur)
 
-for (i in 1:5000) {
-  # 1. Remuestreamos los índices (tomará 13 muestras con reemplazo)
+for (i in 1:10000) {
+  # 1. Remuestreamos los índices (tomará 12 muestras con reemplazo)
   indices <- sample(1:n_años_post_sur, n_años_post_sur, replace = TRUE)
   
   # 2. Sumamos casos y nacimientos totales de esa muestra específica
@@ -715,7 +720,7 @@ quantile.dist.post.sur
 
 ### Tasa de referencia prefortificación CDMX
 
-```{r Tasa de referencia CDMX 2004-2008, include=FALSE, echo=FALSE}
+```{r Tasa de referencia CDMX 2005-2007, include=FALSE, echo=FALSE}
 library(tidyverse)
 # Filtro los años de interés
 tb.DTN.mapeo.regiones2.prefortificacion<-tb.DTN.mapeo.regiones2 %>%
@@ -741,7 +746,7 @@ tasa.de.referencia.prefortificacion.CDMX.por.diez.mil
 
 ### Intervalo de confianza prefortificación CDMX
 
-```{r Intervalo de confianza prefortificacion CDMX 2004:2008, echo=FALSE, include=FALSE}
+```{r Intervalo de confianza prefortificacion CDMX 2005:2007, echo=FALSE, include=FALSE}
 # Contamos casos DTN por año para región CDMX
 tb.pre.fortificacion.CDMX.años<-as.data.frame(table(tb.pre.fortificacion.CDMX$AÑO))
 names(tb.pre.fortificacion.CDMX.años)<-c("Año","nacimientos.DTN")
@@ -764,10 +769,10 @@ IC.pre.fortificacion.CDMX$prevalencia <- IC.pre.fortificacion.CDMX$nacimientos.D
 IC.pre.fortificacion.CDMX$prevalencia_por_diez_mil <-IC.pre.fortificacion.CDMX$prevalencia*10000
 
 # Hacemos  remuestreos
-distribucion.pre.fortificacion.CDMX <- numeric(5000)
+distribucion.pre.fortificacion.CDMX <- numeric(10000)
 n_años_pre_CDMX <- nrow(IC.pre.fortificacion.CDMX)
 
-for (i in 1:5000) {
+for (i in 1:10000) {
   # 1. Remuestreamos los índices 
   indices <- sample(1:n_años_pre_CDMX, n_años_pre_CDMX, replace = TRUE)
   
@@ -787,11 +792,11 @@ quantile.dist.pre.CDMX
 
 ### Tasa de referencia postfortificación CDMX
 
-```{r Tasa de referencia CDMX 2008-2021, include=FALSE, echo=FALSE}
+```{r Tasa de referencia CDMX 2010-2021, include=FALSE, echo=FALSE}
 library(tidyverse)
 # Filtro los años de interés
 tb.DTN.mapeo.regiones2.postfortificacion<-tb.DTN.mapeo.regiones2 %>%
-  filter(AÑO > 2008)
+  filter(AÑO >= 2010)
 # Selecciono los estados de la región CDMX
 tb.post.fortificacion.CDMX<-tb.DTN.mapeo.regiones2.postfortificacion%>%
   filter(ESTADOM2 %in% c("Ciudad de México"))
@@ -800,7 +805,7 @@ post.fortificacion.CDMX <- length(tb.post.fortificacion.CDMX$AÑO)
 # Ahora estimo total de nacimientos (vivos + muertos) en el mismo período para la región CDMX
 # Filtro años de interés y estados del centro
 nacimientos.postfortificacion.CDMX<-tb.total.nacimientos.INEGI %>%
-  select(Total,"2009":"2021")%>%
+  select(Total,"2010":"2021")%>%
   filter(Total %in% c("Ciudad de México"))
 
 nacimientos.postfortificacion.CDMX<-sum(apply(nacimientos.postfortificacion.CDMX[-1], 1, sum))
@@ -813,13 +818,13 @@ tasa.de.referencia.postfortificacion.CDMX.por.diez.mil
 
 ### Intervalo de confianza postfortificación CDMX
 
-```{r Intervalo de confianza postfortificacion CDMX 2008:2021, echo=FALSE, include=FALSE}
+```{r Intervalo de confianza postfortificacion CDMX 2010:2021, echo=FALSE, include=FALSE}
 # Contamos casos DTN por año para región CDMX
 tb.post.fortificacion.CDMX.años<-as.data.frame(table(tb.post.fortificacion.CDMX$AÑO))
 names(tb.post.fortificacion.CDMX.años)<-c("Año","nacimientos.DTN")
 # Contamos nacimientos totales por año para región CDMX
 nacimientos.postfortificacion.CDMX.años<-tb.total.nacimientos.INEGI %>%
-  select(Total,"2009":"2021")%>%
+  select(Total,"2010":"2021")%>%
   filter(Total %in% c("Ciudad de México"))
 # Sumamos
 nacimientos.postfortificacion.CDMX.años<-apply(nacimientos.postfortificacion.CDMX.años[-1], 2, sum)
@@ -837,11 +842,11 @@ IC.post.fortificacion.CDMX$prevalencia <- IC.post.fortificacion.CDMX$nacimientos
 IC.post.fortificacion.CDMX$prevalencia_por_diez_mil <-IC.post.fortificacion.CDMX$prevalencia*10000
 
 # Hacemos  remuestreos
-distribucion.post.fortificacion.CDMX <- numeric(5000)
+distribucion.post.fortificacion.CDMX <- numeric(10000)
 n_años_post_CDMX <- nrow(IC.post.fortificacion.CDMX)
 
-for (i in 1:5000) {
-  # 1. Remuestreamos los índices (tomará 13 muestras con reemplazo)
+for (i in 1:10000) {
+  # 1. Remuestreamos los índices (tomará 12 muestras con reemplazo)
   indices <- sample(1:n_años_post_CDMX, n_años_post_CDMX, replace = TRUE)
   
   # 2. Sumamos casos y nacimientos totales de esa muestra específica
@@ -895,11 +900,11 @@ disminucion.prevalencia.CDMX
 
 ```{r IC razon de prevalencia Norte, echo=FALSE, include=FALSE}
 # Remuestreo razón de prevalencia región norte
-distribucion.razon.prevalencia.norte <- numeric(5000)
+distribucion.razon.prevalencia.norte <- numeric(10000)
 n_años_post_norte <- nrow(IC.post.fortificacion.norte)
 n_años_pre_norte <- nrow(IC.pre.fortificacion.norte)
 
-for (i in 1:5000) {
+for (i in 1:10000) {
   # 1. Remuestreamos índices para pre y post
   indices_post <- sample(1:n_años_post_norte, n_años_post_norte, replace = TRUE)
   indices_pre <- sample(1:n_años_pre_norte, n_años_pre_norte, replace = TRUE)
@@ -928,11 +933,11 @@ quantile.razon.prevalencia.norte
 
 ```{r IC disminución de prevalencia Norte, echo=FALSE, include=FALSE}
 # Remuestreo disminución de prevalencia región norte
-distribucion.disminucion.prevalencia.norte <- numeric(5000)
+distribucion.disminucion.prevalencia.norte <- numeric(10000)
 n_años_post_norte <- nrow(IC.post.fortificacion.norte)
 n_años_pre_norte <- nrow(IC.pre.fortificacion.norte)
 
-for (i in 1:5000) {
+for (i in 1:10000) {
   # 1. Remuestreamos índices para pre y post
   indices_post <- sample(1:n_años_post_norte, n_años_post_norte, replace = TRUE)
   indices_pre <- sample(1:n_años_pre_norte, n_años_pre_norte, replace = TRUE)
@@ -963,11 +968,11 @@ quantile.disminucion.prevalencia.norte
 
 ```{r IC razon de prevalencia Centro, echo=FALSE, include=FALSE}
 # Remuestreo razón de prevalencia región centro
-distribucion.razon.prevalencia.centro <- numeric(5000)
+distribucion.razon.prevalencia.centro <- numeric(10000)
 n_años_post_centro <- nrow(IC.post.fortificacion.centro)
 n_años_pre_centro <- nrow(IC.pre.fortificacion.centro)
 
-for (i in 1:5000) {
+for (i in 1:10000) {
   # 1. Remuestreamos índices para pre y post
   indices_post <- sample(1:n_años_post_centro, n_años_post_centro, replace = TRUE)
   indices_pre <- sample(1:n_años_pre_centro, n_años_pre_centro, replace = TRUE)
@@ -996,11 +1001,11 @@ quantile.razon.prevalencia.centro
 
 ```{r IC disminución de prevalencia Centro, echo=FALSE, include=FALSE}
 # Remuestreo disminución de prevalencia región centro
-distribucion.disminucion.prevalencia.centro <- numeric(5000)
+distribucion.disminucion.prevalencia.centro <- numeric(10000)
 n_años_post_centro <- nrow(IC.post.fortificacion.centro)
 n_años_pre_centro <- nrow(IC.pre.fortificacion.centro)
 
-for (i in 1:5000) {
+for (i in 1:10000) {
   # 1. Remuestreamos índices para pre y post
   indices_post <- sample(1:n_años_post_centro, n_años_post_centro, replace = TRUE)
   indices_pre <- sample(1:n_años_pre_centro, n_años_pre_centro, replace = TRUE)
@@ -1031,11 +1036,11 @@ quantile.disminucion.prevalencia.centro
 
 ```{r IC razon de prevalencia Sur, echo=FALSE, include=FALSE}
 # Remuestreo razón de prevalencia región sur
-distribucion.razon.prevalencia.sur <- numeric(5000)
+distribucion.razon.prevalencia.sur <- numeric(10000)
 n_años_post_sur <- nrow(IC.post.fortificacion.sur)
 n_años_pre_sur <- nrow(IC.pre.fortificacion.sur)
 
-for (i in 1:5000) {
+for (i in 1:10000) {
   # 1. Remuestreamos índices para pre y post
   indices_post <- sample(1:n_años_post_sur, n_años_post_sur, replace = TRUE)
   indices_pre <- sample(1:n_años_pre_sur, n_años_pre_sur, replace = TRUE)
@@ -1064,11 +1069,11 @@ quantile.razon.prevalencia.sur
 
 ```{r IC disminución de prevalencia Sur, echo=FALSE, include=FALSE}
 # Remuestreo disminución de prevalencia región sur
-distribucion.disminucion.prevalencia.sur <- numeric(5000)
+distribucion.disminucion.prevalencia.sur <- numeric(10000)
 n_años_post_sur <- nrow(IC.post.fortificacion.sur)
 n_años_pre_sur <- nrow(IC.pre.fortificacion.sur)
 
-for (i in 1:5000) {
+for (i in 1:10000) {
   # 1. Remuestreamos índices para pre y post
   indices_post <- sample(1:n_años_post_sur, n_años_post_sur, replace = TRUE)
   indices_pre <- sample(1:n_años_pre_sur, n_años_pre_sur, replace = TRUE)
@@ -1099,11 +1104,11 @@ quantile.disminucion.prevalencia.sur
 
 ```{r IC razon de prevalencia CDMX, echo=FALSE, include=FALSE}
 # Remuestreo razón de prevalencia región CDMX
-distribucion.razon.prevalencia.CDMX <- numeric(5000)
+distribucion.razon.prevalencia.CDMX <- numeric(10000)
 n_años_post_CDMX <- nrow(IC.post.fortificacion.CDMX)
 n_años_pre_CDMX <- nrow(IC.pre.fortificacion.CDMX)
 
-for (i in 1:5000) {
+for (i in 1:10000) {
   # 1. Remuestreamos índices para pre y post
   indices_post <- sample(1:n_años_post_CDMX, n_años_post_CDMX, replace = TRUE)
   indices_pre <- sample(1:n_años_pre_CDMX, n_años_pre_CDMX, replace = TRUE)
@@ -1132,11 +1137,11 @@ quantile.razon.prevalencia.CDMX
 
 ```{r IC disminución de prevalencia CDMX, echo=FALSE, include=FALSE}
 # Remuestreo disminución de prevalencia región CDMX
-distribucion.disminucion.prevalencia.CDMX <- numeric(5000)
+distribucion.disminucion.prevalencia.CDMX <- numeric(10000)
 n_años_post_CDMX <- nrow(IC.post.fortificacion.CDMX)
 n_años_pre_CDMX <- nrow(IC.pre.fortificacion.CDMX)
 
-for (i in 1:5000) {
+for (i in 1:10000) {
   # 1. Remuestreamos índices para pre y post
   indices_post <- sample(1:n_años_post_CDMX, n_años_post_CDMX, replace = TRUE)
   indices_pre <- sample(1:n_años_pre_CDMX, n_años_pre_CDMX, replace = TRUE)
@@ -1362,7 +1367,65 @@ tabla.prevalencia.regiones.2<-data.frame(
            ) 
 tabla.prevalencia.regiones.2
 # Exportar la tabla de resultados con intervalos de confianza a CSV
-write.csv(tabla.prevalencia.regiones.2, "tabla_prevalencia_regiones_con_IC.csv", row.names = FALSE, fileEncoding = "UTF-8")
+write.csv(tabla.prevalencia.regiones.2, "table_2_regional_prevalence.csv", row.names = FALSE, fileEncoding = "UTF-8")
+
+```
+
+```{r Resultados Tabla 2 para Github, echo=F, results='hold', warning=F, message=F}
+# Genera results/table_2_regional_prevalence.md desde el CSV del script 13
+# Se regenera automáticamente con cada knit del Rmd.
+
+library(readr)
+library(knitr)
+library(kableExtra)
+library(dplyr)
+
+csv_path <- "table_2_regional_prevalence.csv"
+if (!file.exists(csv_path)) {
+  stop("Ejecuta primero el bloque de exportación de la Tabla 2.")
+}
+
+dfTab2 <- read_csv(csv_path, show_col_types = FALSE)
+
+# 1. Renombrar columnas (los nombres de R tienen puntos por espacios)
+names(dfTab2) <- c(
+  "Region",
+  "Pre-fortification prevalence",
+  "Post-fortification prevalence",
+  "Prevalence ratio",
+  "Prevalence decrease"
+)
+
+# 3. Limpiar IC: "( 2.97 a 3.34 )" -> "(2.97 to 3.34)"
+dfTab2[] <- lapply(dfTab2, function(x) {
+  if (is.character(x)) {
+    x <- gsub("\\s+\\)", ")", x)
+    x <- gsub("\\(\\s+", "(", x)
+    x <- gsub("\\s+a\\s+", " to ", x)   # separador "a" -> "to"
+  }
+  x
+})
+
+# 4. Metadatos de trazabilidad
+attr(dfTab2, "source")    <- csv_path
+attr(dfTab2, "generated") <- format(Sys.time(), "%Y-%m-%d %H:%M")
+
+# 5. Crear carpeta de salida
+dir.create("results", showWarnings = FALSE)
+
+# 6. Escribir markdown
+writeLines(
+  c(
+    "<!-- ARCHIVO GENERADO AUTOMÁTICAMENTE. NO EDITAR A MANO. -->",
+    paste0("<!-- Fuente: ",    attr(dfTab2, "source"),    " -->"),
+    paste0("<!-- Generado: ",  attr(dfTab2, "generated"), " -->"),
+    "",
+    "# Table 2. Regional variation in NTD prevalence in Mexico before and after folic acid fortification (2005–2021)",
+    "",
+    kable(dfTab2, format = "markdown", align = "l")
+  ),
+  "results/table_2_regional_prevalence.md"
+)
 ```
 
 ```{r Tabla de resultado, echo=F, results='hold', include=TRUE}
@@ -1384,7 +1447,7 @@ library(rnaturalearth)
 library(rnaturalearthdata)
 # Leemos los contornos de INEGI
 require(sf)
-shape_estados <- read_sf(dsn ="/home/domingo/Documentos/Mapas_en_R/conjunto_de_datos",
+shape_estados <- read_sf(dsn ="/home/domingo/Documentos/Analisis_DTN/Shape_files_INEGI/00ent/",
                          layer = "00ent"
                  #         encoding = "UTF-8"
                  #          use_iconv = TRUE
