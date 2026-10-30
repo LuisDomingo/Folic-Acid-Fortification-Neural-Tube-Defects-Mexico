@@ -1296,10 +1296,10 @@ names(dfSupp1_wide) <- recode(names(dfSupp1_wide),
   "Encefalocele" = "Encephalocele",
   "Meningocele" = "Meningocele",
   "Mielomeningocele" = "Myelomeningocele",
-  "Otras Espinas Bífidas" = "Unspecified NTD" # O "Other spina bifida" según lo hayas definido
+  "Otras Espinas Bífidas" = "Unspecified NTD" # O "Other spina bifida"
 )
 
-# 3. Redondear a 2 decimales para la tabla
+# 3. Redondear a 2 decimales para la tabla (Solo una vez)
 dfSupp1_wide <- dfSupp1_wide %>%
   mutate(across(-Year, ~ round(., 2)))
 
@@ -1321,7 +1321,7 @@ writeLines(
     "",
     "Values are expressed as cases per 10,000 live births and stillbirths. Columns represent categories of neural tube defect.",
     "",
-    kable(dfSupp1_wide, format = "markdown", align = "l")
+    kable(dfSupp1_wide, format = "markdown", align = "l", digits = 2)
   ),
   "results/Supplementary_Table_1.md"
 )
