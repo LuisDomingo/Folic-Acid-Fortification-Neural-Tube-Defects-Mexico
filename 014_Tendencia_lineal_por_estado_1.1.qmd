@@ -303,6 +303,50 @@ comparacion <- data.frame(
 comparacion
 ```
 
+## Script para generar la Supplementary Table 3
+
+
+## Exportación de Supplementary Table 3 a Github
+
+```{r Resultados Supp Table 3 para Github, echo=F, results='hold', warning=F, message=F}
+library(readr)
+library(knitr)
+
+if (!exists("comparacion")) {
+  stop("Ejecuta primero el bloque 'Comparativa de modelos'.")
+}
+
+# 1. Preparar la tabla (redondear y renombrar)
+tabla_supp3 <- comparacion
+names(tabla_supp3) <- c("Model", "AIC", "Adjusted R²")
+
+tabla_supp3$AIC <- round(tabla_supp3$AIC, 2)
+tabla_supp3$`Adjusted R²` <- round(tabla_supp3$`Adjusted R²`, 3)
+
+# 2. Metadatos de trazabilidad
+attr(tabla_supp3, "source")    <- "014_Tendencia_lineal_por_estado (Objeto: comparacion)"
+attr(tabla_supp3, "generated") <- format(Sys.time(), "%Y-%m-%d %H:%M")
+
+# 3. Crear carpeta de salida si no existe
+dir.create("results", showWarnings = FALSE)
+
+# 4. Escribir el archivo Markdown
+writeLines(
+  c(
+    "<!-- ARCHIVO GENERADO AUTOMÁTICAMENTE. NO EDITAR A MANO. -->",
+    paste0("<!-- Fuente: ",    attr(tabla_supp3, "source"),    " -->"),
+    paste0("<!-- Generado: ",  attr(tabla_supp3, "generated"), " -->"),
+    "",
+    "# Supplementary Table 3. Models goodness-of-fit and relative comparative performance",
+    "",
+    "The table compares the goodness-of-fit of the linear and quadratic models evaluating the relationship between baseline state-level NTD prevalence and absolute prevalence reduction after fortification. Models were compared using the Akaike Information Criterion (AIC) and the Adjusted R².",
+    "",
+    kable(tabla_supp3, format = "markdown", align = c("l", "c", "c"))
+  ),
+  "results/Supplementary_Table_3.md"
+)
+```
+
 **Interpretación:**
 
 El modelo lineal simple (Diferencias en prevalencias ~ Pre-fortificación) mostró una asociación significativa, explicando aproximadamente el XX% de la varianza (R² ajustado). Los estados con mayor prevalencia basal presentaron las mayores reducciones absolutas. Aquellos estados con prevalencias basales menores pero que experimentaron aumentos (como Campeche, Chihuahua, Tabasco y Yucatán) se reflejan como valores negativos en el eje de ordenadas del siguiente gráfico.
@@ -354,6 +398,7 @@ ggsave("Supplementary_Fig_1_modelo_lineal_ingles.jpeg",
        units = "cm",
        dpi = 600)
 ```
+
 
 
 ## Mapeo disminución de prevalencia por estado
