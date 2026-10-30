@@ -377,7 +377,7 @@ ggplot(tb.tasas.referencias.razon.prevalencia.2,
                   segment.color = "gray50") +
   labs(
     x = "Baseline state-level prevalence per 10,000 births",
-    y = "Prevalence difference after fortification (Pre - Post) per 10,000 births"
+    y = "Prevalence difference after fortification\n(Pre - Post per 10,000 births)"
   ) +
   # Línea en el cero para denotar "sin cambio" o "aumento"
   geom_hline(yintercept = 0, linetype = "dashed", color = "red", alpha = 0.5) +
@@ -399,7 +399,13 @@ ggsave("Supplementary_Fig_1_modelo_lineal_ingles.jpeg",
        dpi = 600)
 ```
 
+**INTERPRETACIÓN**
 
+La línea roja punteada (y = 0): Es un gran acierto visual. Divide perfectamente el gráfico en dos: los estados que tuvieron reducción (arriba) y los que tuvieron aumento (abajo).
+
+Los 4 estados con aumentos: Se ven claramente en el cuadrante inferior. Tabasco, Campeche, Chihuahua y Yucatán están perfectamente identificados por debajo del cero, tal como lo menciona el texto.
+
+La tendencia lineal: La línea de regresión gris con su intervalo de confianza demuestra visualmente que, a mayor prevalencia basal (eje X), mayor es la reducción absoluta (eje Y). Los estados como Colima, Puebla y Nayarit (a la derecha) son la prueba de que la fortificación funcionó mejor donde más se necesitaba.
 
 ## Mapeo disminución de prevalencia por estado
 
