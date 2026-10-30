@@ -1,0 +1,487 @@
+---
+title: "Tendencia lineal de prevalencia por estado"
+author: "Domingo Martínez"
+toc: true # Activar tabla de contenido
+toc-depth: 3 # Profundidad de la tabla de contenido
+toc-expand: true # Mostrar tabla al inicio
+toc-location: left-body # Ubicación de la tabla de contenido
+number-sections: true # Numerar los encabezados en el render
+number-depth: 3 # Profundidad de encabezados que se numerarán
+toc-title: Contenido # Personalizar el título de la tabla de contenidos
+theme: sketchy # Tema
+fontsize: 100% # Tamaño de la letra
+# fontcolor: grey # Definir color
+highlight-style: pygments
+format:
+  html: 
+    self-contained: true  # Incrustar todos los recursos en un solo archivo
+    code-fold: true
+    html-math-method: katex
+  pdf:
+    geometry: 
+      - top=30mm
+      - left=30mm
+  docx: default
+---
+
+## Descripción
+
+En este script se busca emular el análisis del gráfico correspondiente a la Figura 2 del artículo de Wals et al., 2007.
+Las variables de interés, de la base de datos titulada tb.DTN.curado.2021-2005.csv, son:
+
+-   Condición al nacimiento (**COND_NAC**), Factor: {vivo/muerto}
+-   Estado que notificó (**ESTADOM2**), Factor: {32 estados/NA}
+
+Para poder calcular la prevalencia, también necesitaremos la base de datos de INEGI titulada: "Total_nacimientos_por_Año_y_por_Estado_INEGI.csv" 
+
+## Lectura de las bases de datos
+
+```{r Lectura de dataset, include=F, echo=FALSE}
+library(tidyverse)
+tb.DTN.estados<-read_csv("tb.DTN.curado.2021-2005.csv")
+tb.total.nacimientos.INEGI<-read_csv("Total_nacimientos_por_Año_y_por_Estado_INEGI.csv")
+# El total incluye nacidos vivos y nacidos muertos, se meustra por año y por estado.
+```
+
+## Seleccionamos variables de interés
+
+```{r Seleccionando variables de inteŕes, include=FALSE, echo=FALSE}
+tb.DTN.estados.2<-tb.DTN.estados %>%
+  select(AÑO, COND_NAC, ESTADOM2)
+```
+
+Ahora tengo que homologar los nombres de los estados de acuerdo con el INEGI.
+
+Los nombres de los estados los extraigo de: tb.total.nacimientos.INEGI
+
+```{r Homologando nombres de estados, include=F, echo=FALSE}
+tb.total.nacimientos.INEGI$Total
+library(plyr)
+tb.DTN.estados.2$ESTADOM2<-plyr::revalue(tb.DTN.estados.2$ESTADOM2,
+              c("AGUASCALIENTES"="Aguascalientes",
+                "BAJA CALIFORNA NORTE"="Baja California",
+                "BAJA CALIFORNIA SUR"="Baja California Sur",
+                "CAMPECHE"="Campeche",
+                "COAHUILA"="Coahuila de Zaragoza",
+                "COLIMA"="Colima", 
+                "CHIAPAS"="Chiapas",
+                "CHIHUAHUA"="Chihuahua",
+                "CIUDAD DE MÉXICO"="Ciudad de México",
+                "DURANGO"="Durango",
+                "GUANAJUATO"="Guanajuato",
+                "GUERRERO"="Guerrero",
+                "HIDALGO"="Hidalgo", 
+                "JALISCO"="Jalisco",
+                "ESTADO DE MÉXICO"="México",                          
+                "MICHOACÁN"="Michoacán de Ocampo",
+                "MORELOS"= "Morelos",
+                "NAYARIT"="Nayarit",
+                "NUEVO LEÓN"="Nuevo León",
+                "OAXACA"="Oaxaca",
+                "PUEBLA"="Puebla",
+                "QUERÉTARO"="Querétaro",
+                "QUINTANA ROO"="Quintana Roo",
+                "SAN LUIS POTOSÍ"="San Luis Potosí",   
+                "SINALOA"="Sinaloa",
+                "SONORA"="Sonora",
+                "TABASCO"="Tabasco",
+                "TAMAULIPAS"="Tamaulipas",
+                "TLAXCALA"="Tlaxcala",
+                "VERACRUZ"="Veracruz de Ignacio de la Llave",
+                "YUCATÁN"="Yucatán",
+                "ZACATECAS"="Zacatecas",
+                "desconocido"=NA
+                ))
+```
+
+## Estimamos tasa de referencia (prevalencia) 
+
+Tasa de referencia = (Total de nacidos vivos con DTN + Total de nacidos muertos con DTN) / (Total de nacidos vivos + Total de nacidos muertos)
+
+Nuestros períodos de estudio se dividen en tres partes:
+- Pre-fortificación: 2005 a 2007
+- Fortificación obligatoria: 2008 a 2009
+- Post-fortificación 2010 a 2021
+
+```{r Tasa de referencia 2004-2008, include=FALSE, echo=FALSE}
+# Filtro los años de interés
+tb.DTN.estados.2.prefortificacion<-tb.DTN.estados.2 %>%
+  filter(AÑO < 2008)
+# Sumo para cada estado el total de nacidos vivos con DTN + nacidos muertos con DTN
+## Primero hago un dataframe en el que guardaré toda la información
+total.DNT.por.estado.prefortificacion <-data.frame(
+  "ESTADOM2"=as.character(),
+  "Total.DTN"=as.numeric()
+)
+## Ahora, declaro el vector de estados sobre el cual iteraré
+estados<-unique(tb.DTN.estados.2.prefortificacion$ESTADOM2)
+estados<-na.omit(estados)
+# Los acomodo en orden alfabético
+estados<-sort(estados, decreasing = F)
+
+## Aplico un ciclo para calcular el total de nacimientos por estado
+i= "San Luis Potosí"
+for (i in estados) {
+  tb.i.3<-tb.DTN.estados.2.prefortificacion %>%
+    filter(ESTADOM2 == i)
+  
+  # guardo valores en mi dataframe
+  tb.i.4 <- data.frame("ESTADOM2"=i,
+             "Total.DTN"=nrow(tb.i.3))
+  # Integro ambos dataframes
+  total.DNT.por.estado.prefortificacion <-rbind(total.DNT.por.estado.prefortificacion,
+                                                tb.i.4)
+}
+
+# Ahora estimo total de nacimos (vivos + muertos) en el mismo período 
+# Filtro años de interés 
+nacimientos.prefortificacion<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2005":"2007")
+# Sumo el total de nacimiento de 2005 a 2007 por estado, y lo agrego en una nueva columna
+nacimientos.prefortificacion$Total.nacimientos<- apply(nacimientos.prefortificacion[-1], 1, sum)
+# Le cambio el nombre a la primera columna
+names(nacimientos.prefortificacion)[1]<-"ESTADOM2"
+# Orden afabéticamente el dataframe
+nacimientos.prefortificacion<-nacimientos.prefortificacion[order(nacimientos.prefortificacion$ESTADOM2),]
+
+# Verifico que el orden de los estados sea coincidente en ambas bases de datos
+nacimientos.prefortificacion$ESTADOM2 == total.DNT.por.estado.prefortificacion$ESTADOM2
+
+# Integro ambos datasets, para luego calcular tasa de referencia
+tb.tasa.de.referencia.pre.por.estado<-cbind(
+  total.DNT.por.estado.prefortificacion,
+  nacimientos.prefortificacion)
+
+# Estimamos la tasa de referencia prefortificación
+tb.tasa.de.referencia.pre.por.estado$tasa.referencia.pre <- 
+  tb.tasa.de.referencia.pre.por.estado$Total.DTN/
+  tb.tasa.de.referencia.pre.por.estado$Total.nacimientos
+# Ahora por cada 10 mi casos
+tb.tasa.de.referencia.pre.por.estado$tasa.referencia.pre.por.10000 <-tb.tasa.de.referencia.pre.por.estado$tasa.referencia.pre*10000
+```
+
+```{r Tasa de referencia 2010-2021, include=FALSE, echo=FALSE}
+# Filtro los años de interés
+tb.DTN.estados.2.postfortificacion<-tb.DTN.estados.2 %>%
+  filter(AÑO >= 2010)
+# Sumo para cada estado el total de nacidos vivos con DTN + nacidos muertos con DTN
+## Primero hago un dataframe en el que guardaré toda la información
+total.DNT.por.estado.postfortificacion <-data.frame(
+  "ESTADOM2"=as.character(),
+  "Total.DTN"=as.numeric()
+)
+## Ahora, declaro el vector de estados sobre el cual iteraré
+#estados.2<-unique(tb.DTN.estados.2.postfortificacion$ESTADOM2)
+#estados.2<-na.omit(estados.2)
+# Los acomodo en orden alfabético
+#estados.2<-sort(estados.2, decreasing = F)
+
+## Ahora, declaro el vector de estados sobre el cual iteraré
+estados<-unique(tb.DTN.estados.2.prefortificacion$ESTADOM2)
+estados<-na.omit(estados)
+# Los acomodo en orden alfabético
+estados<-sort(estados, decreasing = F)
+
+## Aplico un ciclo para calcular el total de nacimientos por estado
+# i= "San Luis Potosí"
+for (i in estados) {
+  tb.i.5<-tb.DTN.estados.2.postfortificacion %>%
+    filter(ESTADOM2 == i)
+  
+  # guardo valores en mi dataframe
+  tb.i.6 <- data.frame("ESTADOM2"=i,
+             "Total.DTN"=nrow(tb.i.5))
+  # Integro ambos dataframes
+  total.DNT.por.estado.postfortificacion <-rbind(total.DNT.por.estado.postfortificacion,
+                                                tb.i.6)
+}
+
+# Ahora estimo total de nacimos (vivos + muertos) en el mismo período 
+# Filtro años de interés 
+nacimientos.postfortificacion<-tb.total.nacimientos.INEGI %>%
+  select(Total,"2010":"2021")
+# Sumo el total de nacimiento de 2005 a 2007 por estado, y lo agrego en una nueva columna
+nacimientos.postfortificacion$Total.nacimientos<- apply(nacimientos.postfortificacion[-1], 1, sum)
+# Le cambio el nombre a la primera columna
+names(nacimientos.postfortificacion)[1]<-"ESTADOM2"
+# Orden afabéticamente el dataframe
+nacimientos.postfortificacion<-nacimientos.postfortificacion[order(nacimientos.postfortificacion$ESTADOM2),]
+
+# Verifico que el orden de los estados sea coincidente en ambas bases de datos
+nacimientos.postfortificacion$ESTADOM2 == total.DNT.por.estado.postfortificacion$ESTADOM2
+
+# Integro ambos datasets, para luego calcular tasa de referencia
+tb.tasa.de.referencia.post.por.estado<-cbind(
+  total.DNT.por.estado.postfortificacion,
+  nacimientos.postfortificacion)
+
+# Estimamos la tasa de referencia prefortificación
+tb.tasa.de.referencia.post.por.estado$tasa.referencia.post <- 
+  tb.tasa.de.referencia.post.por.estado$Total.DTN/
+  tb.tasa.de.referencia.post.por.estado$Total.nacimientos
+# Ahora por cada 10 mi casos
+tb.tasa.de.referencia.post.por.estado$tasa.referencia.post.por.10000<-tb.tasa.de.referencia.post.por.estado$tasa.referencia.post*10000
+
+```
+
+Integraremos en un solo dataset las tasa de referencia pre y post, para luego calcular la razón de prevalencia.
+
+```{r Integración de dataset y cálculo de razón de prevalencia, include=FALSE, echo=FALSE}
+# Construimos el data frame con nombres explícitos y seguros
+tb.tasas.referencias.razon.prevalencia <- data.frame(
+  ESTADOM2                      = tb.tasa.de.referencia.pre.por.estado$ESTADOM2,
+  tasa.referencia.pre.por.10000 = tb.tasa.de.referencia.pre.por.estado$tasa.referencia.pre.por.10000,
+  ESTADOM2_post                 = tb.tasa.de.referencia.post.por.estado$ESTADOM2,
+  tasa.referencia.post.por.10000 = tb.tasa.de.referencia.post.por.estado$tasa.referencia.post.por.10000
+)
+
+# Calculamos la razón de prevalencia
+tb.tasas.referencias.razon.prevalencia$razon.prevalencia <-
+  tb.tasas.referencias.razon.prevalencia$tasa.referencia.post.por.10000 /
+  tb.tasas.referencias.razon.prevalencia$tasa.referencia.pre.por.10000
+
+# Calculamos la diferencia (pre - post) SIN abs()
+tb.tasas.referencias.razon.prevalencia$diferencia.abs.pre.post <-
+  tb.tasas.referencias.razon.prevalencia$tasa.referencia.pre.por.10000 -
+  tb.tasas.referencias.razon.prevalencia$tasa.referencia.post.por.10000
+
+# Eliminamos la columna duplicada de ESTADOM2_post (posición 3)
+tb.tasas.referencias.razon.prevalencia.2 <- tb.tasas.referencias.razon.prevalencia[,-3]
+
+# Renombramos las columnas para la tabla final
+names(tb.tasas.referencias.razon.prevalencia.2) <-
+  c("Estado",
+    "Pre-fortificación",
+    "Post-fortificación",
+    "Razón de prevalencia",
+    "Diferencias en prevalencias")
+
+# Exportamos
+tb.tasas.referencias.razon.prevalencia.3 <- round(tb.tasas.referencias.razon.prevalencia.2[,-1], digits = 2)
+tb.tasas.referencias.razon.prevalencia.3$Estado <- tb.tasas.referencias.razon.prevalencia.2$Estado
+
+tb.tasas.referencias.razon.prevalencia.3 <- tb.tasas.referencias.razon.prevalencia.3[,c("Estado","Pre-fortificación","Post-fortificación","Razón de prevalencia","Diferencias en prevalencias")]
+
+tb.tasas.referencias.razon.prevalencia.3$'Diferencias con signo'<-round(tb.tasas.referencias.razon.prevalencia.3$`Post-fortificación`- tb.tasas.referencias.razon.prevalencia.3$`Pre-fortificación`, digits = 2)  
+
+write_csv(tb.tasas.referencias.razon.prevalencia.3, "Supplementary_tabla2_razon_prevalencia_por_estados.csv")
+```
+
+```{r Presentación datos tabulares}
+library(kableExtra)
+tabla.estados<-tb.tasas.referencias.razon.prevalencia.2 %>%
+  kbl()%>%
+  kable_styling(font_size = 11)%>%
+  kable_minimal()
+tabla.estados
+```
+
+
+## Comparativa de modelos
+
+```{r Comparativa de modelos}
+# --- Modelo lineal ---
+modelo.lineal <- lm(`Diferencias en prevalencias` ~ `Pre-fortificación`,
+                    data = tb.tasas.referencias.razon.prevalencia.2)
+
+# --- Modelo cuadrático (solo para comparar AIC) ---
+modelo.cuadratico <- lm(`Diferencias en prevalencias` ~ `Pre-fortificación` + I(`Pre-fortificación`^2),
+                        data = tb.tasas.referencias.razon.prevalencia.2)
+
+# --- Comparar AIC ---
+AIC(modelo.lineal, modelo.cuadratico)
+
+# --- Tabla comparativa para la Supplementary Table 3 ---
+comparacion <- data.frame(
+  Modelo = c("Linear", "Quadratic"),
+  AIC = c(AIC(modelo.lineal),
+          AIC(modelo.cuadratico)),
+  R2_Ajustado = c(summary(modelo.lineal)$adj.r.squared,
+                  summary(modelo.cuadratico)$adj.r.squared)
+)
+
+comparacion
+```
+
+**Interpretación:**
+
+El modelo lineal simple (Diferencias en prevalencias ~ Pre-fortificación) mostró una asociación significativa, explicando aproximadamente el XX% de la varianza (R² ajustado). Los estados con mayor prevalencia basal presentaron las mayores reducciones absolutas. Aquellos estados con prevalencias basales menores pero que experimentaron aumentos (como Campeche, Chihuahua, Tabasco y Yucatán) se reflejan como valores negativos en el eje de ordenadas del siguiente gráfico.
+
+## Gráfico final (Supplementary Figure 1)
+
+```{r Graficamos, echo=FALSE, results='hold', message=FALSE}
+library(ggplot2)
+library(ggrepel)
+library(viridis)
+
+# Extraer el resumen del modelo lineal
+resumen_lineal <- summary(modelo.lineal)
+
+ggplot(tb.tasas.referencias.razon.prevalencia.2, 
+       aes(x = `Pre-fortificación`, 
+           y = `Diferencias en prevalencias`,
+           label = Estado)) + 
+  geom_point(color = "#440154FF", size = 3, alpha = 0.8) +
+  # Línea de regresión lineal
+  geom_smooth(method = "lm", se = TRUE, color = "gray50", linewidth = 0.5, fill = "lightgray") + 
+  # Etiquetas de los estados
+  geom_text_repel(size = 2.5, 
+                  family = "Times New Roman",
+                  box.padding = 0.6, 
+                  max.overlaps = 15,
+                  segment.size = 0.3,
+                  segment.color = "gray50") +
+  labs(
+    x = "Baseline state-level prevalence per 10,000 births",
+    y = "Prevalence difference after fortification (Pre - Post) per 10,000 births"
+  ) +
+  # Línea en el cero para denotar "sin cambio" o "aumento"
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", alpha = 0.5) +
+  theme_bw() +
+  theme(
+    text = element_text(family = "Times", size = 10),
+    axis.title = element_text(family = "Times", size = 10),
+    axis.text = element_text(family = "Times", size = 10),
+    plot.title = element_text(family = "Times", size = 10)
+  )
+
+# Exportar gráfico
+ggsave("Supplementary_Fig_1_modelo_lineal_ingles.jpeg",
+       plot = last_plot(),
+       device = "jpeg",
+       width = 18.5,
+       height = 9,
+       units = "cm",
+       dpi = 600)
+```
+
+
+## Mapeo disminución de prevalencia por estado
+
+### Integración de información al shapefile
+
+```{r ShapeFiles, echo=FALSE, results='hold', message=FALSE}
+# Cargamos librería
+library(rnaturalearth)
+library(rnaturalearthdata)
+# Leemos los contornos de INEGI
+require(sf)
+shape_estados <- read_sf(dsn ="/home/domingo/Documentos/Analisis_DTN/Shape_files_INEGI/00ent/",
+                         layer = "00ent")
+
+# 1. Asegurar que el shapefile tenga una columna con los nombres exactos
+# La columna 'NOMGEO' ya tiene los nombres (ej. "Aguascalientes", "Michoacán de Ocampo")
+
+# 2. Unir los datos
+shape_estados <- merge(shape_estados, 
+                       tb.tasas.referencias.razon.prevalencia.2[, c("Estado", "Razón de prevalencia")], 
+                       by.x = "NOMGEO", by.y = "Estado", 
+                       all.x = TRUE)
+
+# 3. Renombrar la columna para el gráfico
+names(shape_estados)[names(shape_estados) == "Razón de prevalencia"] <- "Ranking"
+```
+
+### Mapeo de razón de prevalencia por regiones
+
+```{r}
+library(ggplot2)
+library(ggspatial)
+library(sf)
+library(ggrepel)
+coordenadas.centroides.estados<-st_coordinates(st_centroid(shape_estados$geometry))
+shape_estados<-cbind(shape_estados, coordenadas.centroides.estados)
+ggplot(data = shape_estados) +
+    geom_sf(aes(fill=Ranking)) +
+  xlab("Longitud")+
+  ylab("Latitud")+
+  ggtitle("Razón de prevalencia DTN en México", subtitle = "Prevalencia post-fortificación / prevalencia pre-fortificación")+
+  scale_fill_viridis_c(alpha = 0.6, 
+                       direction = 1, 
+                       option = "cividis",
+                       name="Razón de prevalencia \npor estado") +
+  theme_bw() +
+  annotation_scale(location = "bl", width_hint = 0.5)+
+  annotation_north_arrow(location = "bl", 
+                         which_north = "true", 
+                         pad_x = unit(8, "cm"), 
+                         pad_y = unit(4.5, "cm"), 
+                         style = north_arrow_fancy_orienteering) +
+  theme(panel.background = element_rect(fill = "aliceblue"),
+        panel.grid.major = element_line(color = "gray50", 
+                                        linetype = "dashed", 
+                                        size = 0.1))
+
+ggsave("Razon_prevalencia_por_estado.png", 
+       plot = last_plot(),
+       device = "png",
+       width = 20,
+       height = 9,
+       units = "cm",
+       dpi = 300)
+```
+
+
+
+## Exportación de resultados a Github (Supplementary Table 2)
+
+## Exportación de resultados a Github (Supplementary Table 2)
+
+```{r Resultados Supp Table 2 para Github, echo=F, results='hold', warning=F, message=F}
+# Genera results/Supplementary_Table_2.md desde el CSV de estados
+library(readr)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+csv_path <- "Supplementary_tabla2_razon_prevalencia_por_estados.csv"
+if (!file.exists(csv_path)) {
+  stop("Ejecuta primero el bloque de exportación de la tabla de estados.")
+}
+
+dfSupp2 <- read_csv(csv_path, show_col_types = FALSE)
+
+# 1. Eliminar la columna redundante "Diferencias con signo" (nos quedamos con Pre - Post)
+dfSupp2 <- dfSupp2 %>% select(-`Diferencias con signo`)
+
+# 2. Renombrar las columnas al inglés para la publicación
+names(dfSupp2) <- c(
+  "State",
+  "Pre-fortification (2005-2007)",
+  "Post-fortification (2010-2021)",
+  "Prevalence ratio",
+  "Prevalence difference (Pre - Post)"
+)
+
+# 3. Limpiar nombres con espacios o caracteres extraños
+dfSupp2[] <- lapply(dfSupp2, function(x) {
+  if (is.character(x)) {
+    x <- gsub("\\s+\\)", ")", x)
+    x <- gsub("\\(\\s+", "(", x)
+  }
+  x
+})
+
+# 4. Metadatos de trazabilidad
+attr(dfSupp2, "source")    <- csv_path
+attr(dfSupp2, "generated") <- format(Sys.time(), "%Y-%m-%d %H:%M")
+
+# 5. Crear carpeta de salida si no existe
+dir.create("results", showWarnings = FALSE)
+
+# 6. Escribir el archivo Markdown
+writeLines(
+  c(
+    "<!-- ARCHIVO GENERADO AUTOMÁTICAMENTE. NO EDITAR A MANO. -->",
+    paste0("<!-- Fuente: ",    attr(dfSupp2, "source"),    " -->"),
+    paste0("<!-- Generado: ",  attr(dfSupp2, "generated"), " -->"),
+    "",
+    "# Supplementary Table 2. Prevalence of neural tube defects (NTD) in Mexico by state before and after folic acid fortification",
+    "",
+    "Neural tube defect prevalence is expressed as cases per 10,000 live births and stillbirths. The prevalence ratio was calculated as post-fortification prevalence divided by pre-fortification prevalence. Differences represent the change in prevalence between periods (Pre minus Post). Negative values indicate states where prevalence increased after fortification.",
+    "",
+    kable(dfSupp2, format = "markdown", align = "l")
+  ),
+  "results/Supplementary_Table_2.md"
+)
+```
