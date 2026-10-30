@@ -349,7 +349,7 @@ writeLines(
 
 **Interpretación:**
 
-El modelo lineal simple (Diferencias en prevalencias ~ Pre-fortificación) mostró una asociación significativa, explicando aproximadamente el XX% de la varianza (R² ajustado). Los estados con mayor prevalencia basal presentaron las mayores reducciones absolutas. Aquellos estados con prevalencias basales menores pero que experimentaron aumentos (como Campeche, Chihuahua, Tabasco y Yucatán) se reflejan como valores negativos en el eje de ordenadas del siguiente gráfico.
+The simple linear model (Prevalence difference ~ Pre-fortification) showed a significant positive linear association (p < 0.001), explaining approximately 50% of the variance (Adjusted R² = 0.498). Overall, states with higher baseline prevalence exhibited the largest absolute reductions. Conversely, those states with intermediate or below-average baseline prevalences that experienced increases (e.g., Campeche, Chihuahua, Tabasco, and Yucatán) are reflected as negative values on the y-axis of the following figure.
 
 ## Gráfico final (Supplementary Figure 1)
 
